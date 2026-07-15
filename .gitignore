@@ -33,6 +33,22 @@ wp-content/cache/
 wp-content/plugins/wordfence/tmp/
 
 #==============================================================================#
+#     Specific Files                                                           #
+#==============================================================================#
+Designer Updates/
+downloads/
+install/
+install_new/
+learning-guide/
+showcase
+publications
+tester/
+demonstration_files/
+custom_code/
+.tmb
+.claude
+
+#==============================================================================#
 #     Specific Themes   (By default we remove the pre-loaded themes)           #
 #==============================================================================#
 wp-content/themes/twenty*
@@ -119,6 +135,8 @@ gulp-env.js
 /apple-pay-cert.pem
 nginx.conf
 iworx-backup/*
+wp-content/aiowps_backups
+wp-content/upgrade
 
 #===================================#
 #  Web Host Specific Directories    #

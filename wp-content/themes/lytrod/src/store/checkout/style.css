@@ -1,0 +1,47 @@
+input {
+   
+    padding: 5px;
+    font-size: 16px;
+}
+
+h1.entry-title {
+    display: none;
+}
+
+/* ul.wc_payment_methods.payment_methods.methods {
+    background: white;
+}
+*/
+fieldset{
+    border: none;
+} 
+
+.form-row.place-order {
+    display: flex;
+}
+
+
+button#place_order {
+    background-color: #0d4d95;
+}
+
+#customer_details .col-1 {
+    width: 100%;
+    max-width: unset;
+}
+
+.woocommerce form .form-row {
+    display: block;
+}
+
+#order_review_heading {
+    display: none;
+}
+table.shop_table.woocommerce-checkout-review-order-table {
+    display: none;
+}
+
+#order_review .woocommerce-checkout-payment .form-row {
+    background: white;
+    float: left;
+}

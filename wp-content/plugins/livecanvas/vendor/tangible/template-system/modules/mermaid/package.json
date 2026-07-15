@@ -1,0 +1,16 @@
+{
+  "name": "@tangible/mermaid",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "dev": "roll dev",
+    "build": "roll build",
+    "format": "roll format"
+  },
+  "dependencies": {
+    "mermaid": "^11.2.0"
+  },
+  "devDependencies": {
+    "@tangible/roller": "2.x"
+  }
+}

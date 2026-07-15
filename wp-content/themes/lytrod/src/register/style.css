@@ -1,0 +1,66 @@
+
+.woocommerce-additional-fields{
+    display: none;
+}
+.woocommerce-form-coupon-toggle{
+    display: none;
+}
+.woocommerce-billing-fields h3{
+    display: none;
+}
+.woocommerce-billing-fields__field-wrapper{
+    display: none;
+}
+#order_review_heading{
+    display: none;
+}
+.woocommerce-checkout-review-order h1,table {
+    display: none;
+}
+.wc_payment_methods {
+    display: none;
+}
+.form-row.place-order {
+    background: white;
+    float: left;
+}
+
+.form-row.place-order button {
+    background-color: black!important;
+    float: left;
+}
+
+#add_payment_method #payment div.form-row, .woocommerce-cart #payment div.form-row, .woocommerce-checkout #payment div.form-row {
+    padding: 0;
+}
+.input-text{
+    height: 30px;
+}
+
+select {
+    height: 35px;
+}
+
+.elementor-widget-wrap.elementor-element-populated {
+    min-height: 62vh;
+}
+
+input#vrcut_type {
+    display: none;
+}
+
+input#confirmedpending {
+    display: none;
+}
+
+.woocommerce-notices-wrapper .hide-this-error-message{
+    display: none;
+}
+
+/* .hide-this-error-message > li{
+    border: 1px solid;
+} */
+
+ .woocommerce-billing-fields > .form-row {
+       display: block;
+    }

@@ -1,0 +1,301 @@
+/**
+ * All of the CSS for your public-facing functionality should be
+ * included in this file.
+ */
+
+
+
+.ticket_history_container h3 {
+    text-align: center;
+    /* color: #ccd6f6; */
+}
+.chatbox {
+    background: #112240;
+    padding: 20px;
+    color: #ccd6f6;
+}
+.chatbox:nth-child(1) {
+    margin-bottom: 20px;
+}
+.chatbox:nth-child(2) {
+    margin-bottom: 50px;
+}
+
+.chatboxEven {
+    /* background: #112240; */
+    padding: 20px;
+    /* color: #ccd6f6; */
+    min-height: 10vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    margin-bottom: 20px;
+    margin-top: 20px;
+}
+.chatboxOdd {
+    background: #112240;
+    padding: 20px;
+    color: #ccd6f6;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    margin-bottom: 20px;
+}
+.btn_ticket {
+    border: 1px solid #64ffda;
+    color: #64ffda;
+    padding: 6px;
+    font-family: 'Roboto Mono';
+    background-color: #0a192f;
+    margin-right: 10px;
+    font-size: 12px;
+    margin-bottom: 15px;
+}
+.chat_add_message textarea {
+    padding: 10px;
+    margin-bottom: 10px;
+
+}
+.chat_add_message i {
+    font-size: 25px;
+    display: flex;
+    justify-content: end;
+    cursor: pointer;
+}
+.questionTicketOldVal {
+    display: none;
+}
+.ticketwrapper {
+    min-height: 70vh;
+   
+}
+
+.ticketwrapper .row {
+    display: flex;
+    justify-content: center;
+    text-align: center;
+}
+.ticketwrapper .authorbox {
+    
+    padding: 20px;
+    margin-bottom: 10px;
+
+}
+@-webkit-keyframes spin {
+    0% {
+        transform: rotate(0deg);
+   }
+    100% {
+        transform: rotate(360deg);
+   }
+}
+@keyframes spin {
+    0% {
+        transform: rotate(0deg);
+   }
+    100% {
+        transform: rotate(360deg);
+   }
+}
+.spinner-loader {
+    margin-top: 45px;
+    border-radius: 50%;
+    width: 24px;
+    height: 24px;
+    border: 0.25rem solid rgb(0, 0, 0);
+    border-top-color: rgb(134, 128, 128);
+    -webkit-animation: spin 1s infinite linear;
+    animation: spin 1s infinite linear;
+}
+.message-box-spinner {
+    margin-bottom: 15px;
+    border-radius: 50%;
+    width: 24px;
+    height: 24px;
+    border: 0.25rem solid rgb(0, 0, 0);
+    border-top-color: rgb(134, 128, 128);
+    -webkit-animation: spin 1s infinite linear;
+    animation: spin 1s infinite linear;
+}
+input.questionTicket {
+    background: #112240;
+    border: none;
+    font-size: 22px;
+    color: #ccd6f6;
+    padding: 10px;
+}
+.lytrod-active-field {
+    border: 1px solid #64ffda;
+    animation: pulseBorder 0.75s alternate infinite;
+}
+@keyframes pulseBorder {
+    0% {
+        border: 1px solid #64ffda;
+   }
+    100% {
+        border: 1px solid white;
+   }
+}
+
+
+#accordian2, #accordian1 {
+
+    padding: 20px;
+}
+#accordian2 span, #accordian1 span {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    cursor: pointer;
+}
+#accordian2 span p, #accordian1 span p {
+    
+    font-family: 'Roboto Mono';
+}
+.lytrod-form-button {
+    margin-top: 10px;
+    background-color: white;
+}
+.header_ticket {
+
+    font-size: 30px;
+}
+.app_conversation_row {
+    display: flex;
+    justify-content: center;
+}
+.answerbox {
+    /* margin-left: 50%; */
+    margin-top: 20px;
+}
+.questionbox {
+
+    /* width: 50%; */
+    padding: 15px;
+    margin-bottom: 20px;
+    margin-top: 15px;
+}
+.answerbox {
+
+    padding: 15px;
+}
+
+.wrapper_admin_tickets {
+    background: #0a192f;
+    min-height: 80vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+    color: white;
+}
+
+
+
+
+.note {
+    width: 500px;
+   
+    font-size: 1.1em;
+    color: #333;
+    
+  }
+  #drop-area {
+      margin-top: 20px;
+    border: 2px dashed #ccc;
+    border-radius: 20px;
+    padding: 20px;
+    margin-bottom: 20px;
+  }
+  #drop-area.highlight {
+    border-color: purple;
+  }
+  p {
+    margin-top: 0;
+  }
+  .my-form {
+    margin-bottom: 10px;
+  }
+  #gallery {
+    margin-top: 10px;
+    display: flex;
+  }
+
+  #gallery a {
+   margin-right: 10px;
+  }
+  #gallery img {
+    width: 150px;
+    margin-bottom: 10px;
+    margin-right: 10px;
+    vertical-align: middle;
+  }
+  .button {
+    display: inline-block;
+    padding: 10px;
+    background: #ccc;
+    cursor: pointer;
+    border-radius: 5px;
+    border: 1px solid #ccc;
+  }
+
+  .button-drag{
+    display: inline-block;
+    padding: 10px;
+    background: #ccc;
+    cursor: pointer;
+    border-radius: 5px;
+    border: 1px solid #ccc;
+    color: black;
+  }
+  .button:hover {
+    background: #ddd;
+  }
+  #fileElem {
+    display: none;
+  }
+
+
+  .tab-trigger-container {
+    display: flex;
+    height: 50px;
+    align-items: center;
+    padding-left: 0!important;
+}
+
+.tabs-trigger {
+    /* border: 1px solid black; */
+    padding: 16px;
+    margin-right: 30px;
+    cursor: pointer;
+}
+.tabs-trigger.tabs-trigger--active {
+    background: #E5E5E5;
+  
+}
+
+.tabs-content {
+    /* background: #e5e5e5; */
+    padding: 10px;
+
+}
+
+.ticket_wrapper {
+    min-height: 105vh;
+}
+.dash-box input{
+    width: 100%;
+}
+
+.dash-box select{
+    width: 100%;
+}
+
+.dash-box .btn{
+    width: 100%;
+}
+
+a.return-dashboard {
+    font-size: 20px;
+    font-family: 'Raleway';
+}

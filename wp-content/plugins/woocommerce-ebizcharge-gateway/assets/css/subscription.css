@@ -1,0 +1,568 @@
+/*!
+ * Subscriptions v1.0
+ * Copyright 2021 The CBS Authors
+ * Copyright 2021 CBS, Inc.
+ * Licensed under MIT (https://github.com/twbs/bootstrap/blob/main/LICENSE)
+ */
+/* CSS Document */
+.moveLeft {
+    float: left;
+    width: 22%;
+}
+
+.moveRight {
+    float: left;
+}
+
+.clearAll {
+    content: '';
+    display: table;
+    clear: both;
+    margin-bottom: 20px;
+}
+
+.myLabel {
+    font-size: 15px;
+}
+
+.widthBlock {
+    width: 75%;
+}
+
+.widthBlockEdit {
+    width: 100%;
+}
+
+.widthBlock60 {
+    width: 70%;
+    float: left;
+}
+
+#freqId {
+    float: left;
+    margin-left: 0;
+}
+
+.required_field {
+    color: red;
+    font-size: 16px;
+    vertical-align: middle;
+}
+
+.errormsgsdiv {
+    width: 100%;
+}
+
+.errormsgs {
+    color: red;
+    display: none;
+    width: 100%;
+    float: left;
+    padding: 5px 0;
+    margin: 0 0 10px 0;
+    text-align: center;
+    font-size: medium;
+}
+
+.customFullWidth {
+    width: 100%;
+}
+
+.errors {
+    border: 1px solid red;
+}
+
+.error {
+    color: red;
+    float: right;
+    margin-left: 15px;
+    /*width: 155px;*/
+}
+
+input.error {
+    float: left;
+    margin-left: 0
+}
+
+.valid {
+    border: 2px solid #0ff;
+}
+
+.errorTxt {
+    float: right;
+    border: #0cff3f solid 1px;
+}
+
+.fixedWidth {
+    width: 400px;
+}
+
+input.tgl-radio-tab-child {
+    position: absolute;
+    left: -99999em;
+    top: -99999em;
+    z-index: 1;
+    margin-left: 20px;
+}
+
+input.tgl-radio-tab-child + label {
+    background-color: #ececec;
+    cursor: pointer;
+    float: left;
+    border: 1px solid #aaa;
+    margin-right: -1px;
+    padding: .5em 1em;
+    position: relative;
+}
+
+input.tgl-radio-tab-child + label:hover {
+    border-bottom: red solid 2px;
+}
+
+[type=radio]:checked + label {
+    /*background-color: #fff;*/
+    border-bottom: red solid 2px;
+    z-index: 1;
+}
+
+.rangeDate {
+    width: 50%;
+    float: left;
+}
+
+.widthFix400 {
+    width: 400px;
+}
+
+.cartContainer {
+    width: 95%;
+    margin: 0 auto;
+    margin-bottom: 20px;
+}
+
+.widthFix120 {
+    width: 113px;
+}
+
+/*cart start here */
+
+.title {
+    padding-top: 50px;
+}
+
+.col100 {
+    width: 100%;
+}
+
+table {
+    border-collapse: collapse;
+}
+
+.border {
+    border: 1px solid #cccccc;
+    border-width: 1px 0px 0px 0px;
+}
+
+.itemTr {
+    border: 1px solid #cccccc;
+    border-width: 1px 0px 1px 0;
+    height: 50px;
+}
+
+.qtyWidth {
+    width: 50px;
+}
+
+.recUpdate {
+    width: 60%;
+    background: #F8070B;
+    margin: 0px;
+    padding: 0px;
+}
+
+.fr-main {
+    margin: 20px 0;
+}
+
+.fr-left {
+    width: 305;
+    float: left;
+    margin: 7px 20px;
+}
+
+#dates {
+    width: 100%;
+    border: 0;
+}
+
+#indefinately {
+    width: 100%;
+    border: 0;
+}
+
+.start {
+    width: 50%;
+    float: left;
+}
+
+.left {
+    width: 30%;
+    float: left;
+}
+
+.start span {
+    padding: 5px 10px 5px 10px;
+    float: left;
+}
+
+.end {
+    width: 50%;
+    float: left;
+}
+
+.end span {
+    margin: 0 0 0 8px;
+    padding: 5px 10px;
+}
+
+.field.required.indefinately {
+    margin: 10px;
+}
+
+.msgUnsub {
+    width: 100%;
+    color: red;
+    font-style: italic;
+    text-align: center;
+}
+
+.zeroSpace {
+    padding: 0px;
+    margin: 0px;
+}
+
+.fontSize {
+    font-size: 12px;
+}
+
+.leftOnly {
+    float: left;
+}
+
+.rightOnly {
+    float: right;
+}
+
+.dot_green {
+    height: 8px;
+    width: 8px;
+    background-color: #089D2C;
+    border-radius: 50%;
+    display: inline-block;
+    margin: 0px 5px;
+}
+
+.dot_blue {
+    height: 8px;
+    width: 8px;
+    background-color: #00008B;
+    border-radius: 50%;
+    display: inline-block;
+    margin: 0px 5px 0 0;
+}
+
+.dot_red {
+    height: 8px;
+    width: 8px;
+    background-color: #F30C10;
+    border-radius: 50%;
+    display: inline-block;
+    margin: 0px 5px;
+}
+
+#id {
+    width: 70px;
+}
+
+#start_date_search {
+    width: 95px;
+}
+
+#expire_date_search {
+    width: 95px;
+}
+
+.search_keyword_orders {
+    width: 120px;
+}
+
+#search_keyword {
+    width: 185px;
+}
+
+.search-box {
+    float: left;
+    padding: 5px 0 5px 0;
+}
+
+.create-orders {
+    float: right;
+    padding-top: 5px;
+}
+
+.both-dates {
+    float: left;
+    width: 216px;
+    margin-right: 2px;
+}
+
+.orders-date {
+    width: 95px;
+    float: left;
+    margin-right: 5px;
+}
+
+.orders-end-date {
+    width: 95px;
+}
+
+.create-orders-button {
+    width: auto;
+    float: right;
+}
+
+.loader {
+    display: none;
+    position: fixed;
+    left: 0px;
+    top: 0px;
+    width: 100%;
+    height: 100%;
+    opacity: 0.8;
+    z-index: 9999;
+    background-color: rgb(249, 249, 249);
+}
+
+.loader img {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 60px;
+}
+
+.pulse {
+    animation-name: pulse;
+    animation-duration: 1s;
+    animation-fill-mode: both;
+    animation-direction: reverse;
+    animation-iteration-count: infinite;
+}
+
+@keyframes pulse {
+    0% {
+        transform: scale3d(1, 1, 1);
+    }
+    50% {
+        transform: scale3d(1.2, 1.2, 1.2);
+    }
+    100% {
+        transform: scale3d(1, 1, 1);
+    }
+}
+
+img.payment_method_image {
+    float: left;
+    margin: 0 5px 0 0;
+}
+
+.button.action.action-prev {
+    font-size: 13px;
+    padding: 0 10px 0 8px;
+}
+
+.button.action.action-next {
+    font-size: 13px;
+    padding: 0 8px 0 10px;
+}
+
+.ajax-loader {
+    /*visibility: hidden;*/
+    background-color: rgba(255, 255, 255, 0.7);
+    position: fixed;
+    z-index: +100 !important;
+    width: 100%;
+    height: 100%;
+}
+
+.ajax-loader img {
+    position: fixed;
+    top: 250px;
+    left: 50%;
+}
+
+div.ui-datepicker {
+    display: none;
+}
+
+.card-img {
+    vertical-align: sub;
+}
+
+.bank-img {
+    vertical-align: sub;
+}
+
+.help-table-secondary {
+    text-align: left;
+}
+
+.help-page-section-item-versions {
+    margin-top: 11%;
+}
+
+.help-page-section-item-bottom {
+    float: right;
+}
+
+.help-page-section-item-content-bottom {
+    text-align: right;
+}
+
+.wp-heading-inline {
+    border-bottom: 1px solid;
+    padding-bottom: 10px;
+    border-color: lightgray;
+}
+
+.wp-list-table th.rec_amount, .wp-list-table td.rec_amount {
+    text-align: left;
+}
+
+.wp-list-table th.column-actions, .wp-list-table td.column-actions {
+    text-align: left;
+}
+
+.wp-list-table th.rec_next_due, .wp-list-table td.rec_next_due {
+    width: 30%;
+}
+
+.subscriptions_page_subscription-orders {
+    margin-right: 10px;
+}
+
+.rec_status {
+    min-width: 77px;
+    float: left;
+}
+
+.actions {
+    text-align: center;
+}
+.check-column input {
+    z-index: 0;
+}
+/* Subscriptions page grid */
+.toplevel_page_view-subscription .column-item_id {width: 132px;}
+.toplevel_page_view-subscription .column-customer_id {width: 112px;}
+.toplevel_page_view-subscription .column-user_email {width: 200px;}
+.toplevel_page_view-subscription .column-item_name {width: 160px;}
+.toplevel_page_view-subscription .column-rec_item_qty {width: 90px;}
+.toplevel_page_view-subscription .column-rec_start_date {width: 100px;}
+.toplevel_page_view-subscription .column-rec_end_date {width: 100px;}
+.toplevel_page_view-subscription .column-rec_next_due {width: 155px;}
+.toplevel_page_view-subscription .column-rec_amount {width: 132px;}
+.toplevel_page_view-subscription .column-rec_pmethod_name {width: 125px;}
+.toplevel_page_view-subscription .column-rec_status {width: 100px;}
+.toplevel_page_view-subscription .column-rec_frequency{width: 130px;}
+.toplevel_page_view-subscription .column-billing_address {width: 200px;}
+.toplevel_page_view-subscription .column-shipping_address {width: 200px;}
+.toplevel_page_view-subscription .column-actions {width: 50px;}
+.toplevel_page_view-subscription .rec_amount {text-align: center !important;}
+
+/* History page grid */
+.subscriptions_page_payment-history .column-customerId {width: 112px;}
+.subscriptions_page_payment-history .column-customerName {width: 120px;}
+.subscriptions_page_payment-history .column-customerEmail {width: 160px;}
+.subscriptions_page_payment-history .column-itemDesc {width: 160px;}
+.subscriptions_page_payment-history .column-itemSku {width: 100px;}
+.subscriptions_page_payment-history .column-paymentDate {width: 120px;}
+.subscriptions_page_payment-history .column-paymentAmount {width: 132px;}
+.subscriptions_page_payment-history .column-cardInfo {width: 120px;}
+.subscriptions_page_payment-history .column-authCode {width: 100px;}
+.subscriptions_page_payment-history .column-refNum {width: 100px;}
+.subscriptions_page_payment-history .column-resultStatus {width: 100px;}
+.subscriptions_page_payment-history .column-actions {width: 70px;}
+.subscriptions_page_payment-history .paymentAmount { text-align: right;}
+
+/* Future subscriptions page grid */
+.subscriptions_page_future-subscription .column-rec_date {width: 100px;}
+.subscriptions_page_future-subscription .column-customer_id {width: 112px;}
+.subscriptions_page_future-subscription .column-user_email {width: 200px;}
+.subscriptions_page_future-subscription .column-item_name {width: 150px;}
+.subscriptions_page_future-subscription .column-rec_item_qty {width: 95px;}
+.subscriptions_page_future-subscription .column-rec_frequency {width: 125px;}
+.subscriptions_page_future-subscription .column-rec_status {width: 85px;}
+.subscriptions_page_future-subscription .column-billing_address { width: 112px;}
+.subscriptions_page_future-subscription .column-shipping_address { width: 112px;}
+.subscriptions_page_future-subscription .column-rec_amount { width: 132px;}
+.subscriptions_page_future-subscription .column-actions { width: 90px;}
+.subscriptions_page_future-subscription .rec_amount {text-align: right !important;}
+
+/* Subscription orders page grid */
+.subscriptions_page_subscription-orders .column-rec_order_id {width: 110px;}
+.subscriptions_page_subscription-orders .column-order_id {width: 135px;}
+.subscriptions_page_subscription-orders .column-customer_id {width: 130px;}
+.subscriptions_page_subscription-orders .column-order_date {width: 130px;}
+.subscriptions_page_subscription-orders .column-user_email {width: 200px;}
+.subscriptions_page_subscription-orders .column-item_name {width: 150px;}
+.subscriptions_page_subscription-orders .column-rec_frequency {width: 120px;}
+.subscriptions_page_subscription-orders .column-created_date { width: 125px;}
+.subscriptions_page_subscription-orders .column-status { width: 110px;}
+.subscriptions_page_subscription-orders .column-message { width: 225px;}
+
+.date-error {
+    color: red;
+    text-align: center;
+    margin: -10px 0 0 50px;
+}
+
+.column-rec_amount span:first-child {
+    float: right;
+}
+
+.column-rec_amount .sorting-indicator {
+    float: left;
+}
+
+.column-paymentAmount span:first-child {
+    float: right;
+}
+
+.column-paymentAmount .sorting-indicator {
+    float: left;
+}
+
+.search-box #clearDates {
+    margin: 0 5px 0 0;
+}
+
+.tablenav {
+    padding-top: 15px;
+}
+
+.notice-notice {
+    border-left-color: yellow;
+}
+
+select.status {
+    padding: 0 20px 0 5px;
+	vertical-align: top;
+}
+
+select.frequency {
+	vertical-align: top;
+}
+
+.sub-add-form {
+    margin: 0 0 0 30px;
+}

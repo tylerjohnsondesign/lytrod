@@ -1,0 +1,299 @@
+/*!
+ * Recurrings v1.0
+ * Copyright 2021 The CBS Authors
+ * Copyright 2021 CBS, Inc.
+ * Licensed under MIT (https://github.com/twbs/bootstrap/blob/main/LICENSE)
+ */
+/* CSS Document */
+.container-subs {
+    width: 100%;
+    float: left;
+}
+
+.subscriptions {
+}
+
+.subs_fields {
+    width: 400px;
+    float: left;
+}
+
+.subs_fields div {
+    margin: 17px 0;
+}
+
+.subs_frequency label {
+    width: 100px;
+    float: left;
+}
+
+.subs_dates label {
+    width: 100px;
+    float: left;
+    margin-top: 10px;
+    margin-bottom: 0;
+}
+
+.subs_indefinitely {
+    margin-left: 100px;
+}
+
+.subs_message {
+    margin-bottom: 30px !important;
+}
+
+.error {
+    color: red;
+    /*float: left;*/
+    padding: 2px 5px;
+    clear: both;
+}
+
+.woocommerce-order-overview.order_details.recurring_array {
+    float: left;
+    width: 100%;
+    margin-top: 0 !important;
+}
+
+.dot_green {
+    height: 10px;
+    width: 10px;
+    background-color: #089D2C;
+    border-radius: 50%;
+    display: inline-block;
+    margin: 0 5px;
+}
+
+.dot_red {
+    height: 10px;
+    width: 10px;
+    background-color: red;
+    border-radius: 50%;
+    display: inline-block;
+    margin: 0 5px;
+}
+
+table.my_account_subscriptions {
+    font-size: .875em;
+}
+/*.woocommerce-MyAccount-content {
+    overflow: scroll visible;
+}*/
+
+/* Edit page css start */
+.subscription-edit {
+    margin: 0 0 20px 0;
+}
+
+.ebiz-row {
+    width: 100%;
+    float: left;
+    margin: 0 0 15px 0;
+}
+
+.widthBlockEdit {
+}
+
+.clearAll {
+    clear: both;
+}
+
+.col-25 {
+    width: 25%;
+}
+
+.col-75 {
+    width: 75%;
+}
+
+.moveLeft {
+    float: left;
+}
+
+.moveRight {
+    float: left;
+}
+
+.dates {
+    width: 100%;
+    float: left;
+    padding: 0 auto;
+}
+
+.rangeDate {
+    width: 350px;
+}
+
+.rangeDate.startDate {
+    float: left;
+}
+
+.rangeDate.endDate {
+    float: left;
+    margin-left: 45px;
+    width: 315px;
+}
+
+.flLeft {
+    float: left;
+}
+
+.flRight {
+    float: right;
+}
+
+.ebiz-row.leftOnly {
+    float: left;
+    width: 40%;
+    background: #eee;
+    padding: 10px 0 0 10px;
+}
+
+.ebiz-row.rightOnly {
+    float: left;
+    width: 40%;
+    background: #eee;
+    padding: 10px 0 0 10px;
+}
+
+.notice-red {
+    color: red;
+    text-align: center;
+}
+
+.subscription-edit select {
+    min-width: 240px;
+}
+
+.ach-radio {
+    margin-left: 15px;
+}
+
+.ebizs_option {
+    display: none;
+}
+
+.pmethod {
+    padding: 5px;
+    background: #eee;
+}
+
+.pmethod:hover {
+    padding: 5px;
+    background: #eee;
+    border-bottom: 3px solid red !important;
+}
+
+.payment-div {
+    padding: 0 8px 10px 0;
+    border-bottom: 1px solid silver;
+    width: auto;
+}
+
+label {
+    vertical-align: middle;
+}
+
+.input-text, .input-select {
+    padding: 5px !important;
+}
+
+.selectdivPayment {
+    width: auto;
+}
+
+.cc-radio, .bank-radio {
+    float: left;
+    width: auto;
+    padding: 0 5px;
+}
+
+.tab-links {
+    padding-bottom: 15px;
+    border-bottom: 1px solid silver;
+    width: auto;
+    margin: 0 0 20px 0;
+}
+
+.subacriptions-link {
+    width: auto;
+    float: left;
+    margin: 0 10px;
+}
+
+.tab-a {
+    background: #f4f4f4;
+    padding: 5px 10px;
+    text-decoration: none !important;
+    color: #333;
+    border-bottom: 3px solid transparent;
+}
+
+.tab-a:hover {
+    background: #f4f4f4;
+    padding: 5px 10px;
+    text-decoration: none !important;
+    color: #333;
+    border-bottom: 3px solid red !important;
+}
+
+.tab-a.active {
+    border-bottom: 3px solid red !important;
+}
+
+.payment_method_image {
+    float: left;
+    margin: 5px 5px 0 0;
+}
+
+.image_div {
+    min-width: 125px;
+}
+
+.status_div {
+    min-width: 100px;
+}
+
+.ajax-loader {
+    /*visibility: hidden;*/
+    background-color: rgba(255, 255, 255, 0.7);
+    position: absolute;
+    z-index: +100 !important;
+    width: 100%;
+    height: 100%;
+}
+
+.ajax-loader img {
+    position: relative;
+    top: 30%;
+    left: 30%;
+}
+
+/* Edit page css end */
+.ac-card-img {
+    float: left;
+    margin: 10px 6px 0 0;
+}
+
+.card-img {
+    float: right;
+    margin: 6px 0 0 2px;
+    width: 20px;
+}
+
+.bank-img {
+    float: right;
+    margin: 5px 0 0 2px;
+}
+
+table.dataTable th {
+    padding: 5px 25px 5px 5px !important;
+}
+
+table.dataTable td {
+    padding: 8px 8px 8px 5px !important;
+}
+
+.amount_span {
+    float: right;
+}

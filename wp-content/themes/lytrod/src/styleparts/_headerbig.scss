@@ -1,0 +1,50 @@
+@media (min-width:1000px) {
+    .burger{
+        display: none;
+    }
+    #primary-menu {
+        
+        display: flex!important;
+        li{
+            a{
+                font-size: 13px;
+                color:#5B5B5B;
+                font-weight: 600;
+                text-decoration: none;
+                // display: flex;
+                // align-items: baseline;
+                &:hover{
+                    color: #4495d1;
+                }
+            }
+        }
+    }
+    #primary-menu{
+        .menu-item-has-children >a{
+            display: flex;
+            align-items: baseline;
+        }
+    }
+}
+
+
+@media (min-width:1165px) {
+    .burger{
+        display: none;
+    }
+    #primary-menu {
+        
+        display: flex!important;
+        li{
+            a{
+                font-size: 13px!important;
+                color: #5b5b5b;
+                font-weight: 600;
+                // letter-spacing: ;
+                &:hover{
+                    color: #4495d1;
+                }
+            }
+        }
+    }
+}

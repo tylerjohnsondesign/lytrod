@@ -1,0 +1,31 @@
+.col-2{
+    display: none;
+}
+#customer_details{
+    display: flex;
+    justify-content: center;
+}
+table.shop_table.woocommerce-checkout-review-order-table {
+    display: none;
+}
+#payment{
+    width: 50%;
+    display: flex;
+    justify-content: end;
+    margin: auto;
+    background: white!important;
+
+}
+div#order_review>h1 {
+    display: none;
+}
+h3#order_review_heading{
+    display: none;
+}
+.woocommerce-info {
+    display: none;
+}
+
+.woocommerce-billing-fields>h3 {
+    display: none;
+}

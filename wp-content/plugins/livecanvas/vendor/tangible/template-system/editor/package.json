@@ -1,0 +1,18 @@
+{
+  "name": "@template-system/editor",
+  "description": "Code editor based on CodeMirror 6",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "dev": "roll dev",
+    "build": "roll build",
+    "format": "roll format",
+    "-- Run below before using shared roller from project root": "",
+    "prep": "npm install --omit=dev"
+  },
+  "dependencies": {
+  },
+  "devDependencies": {
+    "@tangible/roller": "1"
+  }
+}

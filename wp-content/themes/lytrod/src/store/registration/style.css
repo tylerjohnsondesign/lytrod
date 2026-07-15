@@ -1,0 +1,34 @@
+ /**checkout signupform */
+
+ .woocommerce form .form-row {
+    padding: 3px;
+    margin: 0 0 6px;
+    display: block;
+}
+
+#customer_details .col-1{
+    width: 100%;
+    max-width: unset;
+}
+
+.woocommerce-additional-fields {
+    display: none;
+}
+
+table.shop_table.woocommerce-checkout-review-order-table {
+    display: none;
+}
+
+h3#order_review_heading {
+    display: none;
+}
+
+.form-row.place-order {
+    background: white;
+    float: left;
+}
+
+
+.woocommerce-billing-fields h3 {
+    display: none;
+} 

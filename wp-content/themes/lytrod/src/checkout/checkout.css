@@ -1,0 +1,8 @@
+.woocommerce .col2-set .col-1, .woocommerce-page .col2-set .col-1,.woocommerce .col2-set .col-2, .woocommerce-page .col2-set .col-2 {
+    float: unset!important;
+    width: 100%!important;
+}
+
+.page-id-16501 .entry-content {
+	padding: 60px;
+}

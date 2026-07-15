@@ -1,0 +1,221 @@
+.nf-condition {
+  border: 1px solid #aaa;
+  margin-top: 20px;
+}
+
+.nf-condition-header {
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.nf-condition-drag-handle {
+  cursor: move;
+}
+.nf-condition-drag-handle .nf-drag-condition {
+  color: #666;
+  font-size: 18px;
+}
+.nf-condition-drag-handle .nf-drag-condition:hover {
+  color: #2BAAE7;
+}
+
+.nf-condition-label-input {
+  flex: 1;
+  min-width: 150px;
+}
+.nf-condition-label-input .nf-condition-label-field {
+  width: 100%;
+  padding: 5px 8px;
+  border: 1px solid #ddd;
+  border-radius: 3px;
+  font-size: 13px;
+}
+.nf-condition-label-input .nf-condition-label-field:focus {
+  border-color: #2BAAE7;
+  outline: none;
+  box-shadow: 0 0 3px rgba(43, 170, 231, 0.3);
+}
+
+.nf-condition-when-text {
+  margin-bottom: 10px;
+}
+
+.nf-condition-placeholder {
+  border: 4px solid #84CC1E;
+  background: #84CC1E;
+  height: 8px !important;
+  margin: 8px 0 -4px 0;
+}
+
+/* Free-floating drag visual feedback */
+.ui-sortable-helper {
+  opacity: 0.5 !important;
+  z-index: 99999 !important;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+}
+
+.nf-first-when-container {
+  background: #D3D3D3;
+  padding: 10px;
+}
+.nf-first-when-container::after {
+  clear: both;
+  content: "";
+  display: block;
+}
+.nf-when-controls {
+  float: right;
+  display: flex;
+  gap: 12px;
+}
+
+/* Icon button reset and focus styles for accessibility - scoped to .nf-condition */
+.nf-condition .nf-icon-btn {
+  background: none;
+  border: none;
+  padding: 4px;
+  border-radius: 3px;
+  cursor: pointer;
+  line-height: 1;
+}
+.nf-condition .nf-icon-btn:focus {
+  outline: 2px solid #2BAAE7;
+  outline-offset: 2px;
+}
+.nf-condition .nf-icon-btn:focus:not(:focus-visible) {
+  outline: none;
+}
+.nf-condition .nf-icon-btn:focus-visible {
+  outline: 2px solid #2BAAE7;
+  outline-offset: 2px;
+}
+.nf-condition .nf-icon-btn .fa {
+  color: #2BAAE7;
+  font-size: 22px;
+}
+.nf-condition .nf-icon-btn.nf-remove-condition .fa, .nf-condition .nf-icon-btn.nf-remove-when .fa, .nf-condition .nf-icon-btn.nf-remove-then .fa, .nf-condition .nf-icon-btn.nf-remove-else .fa {
+  color: red;
+}
+
+.nf-when-container::after,
+.nf-then-container::after,
+.nf-else-container::after {
+  clear: both;
+  content: "";
+  display: block;
+}
+.nf-when-container .nf-one-fourth .fa,
+.nf-then-container .nf-one-fourth .fa,
+.nf-else-container .nf-one-fourth .fa {
+  font-size: 22px;
+  padding-top: 15px;
+}
+.nf-when-container .nf-one-fourth:first-child,
+.nf-then-container .nf-one-fourth:first-child,
+.nf-else-container .nf-one-fourth:first-child {
+  width: 7.5%;
+}
+
+.nf-when-container {
+  background: #D3D3D3;
+  padding: 0 10px 10px;
+}
+.nf-when-container .nf-one-fourth {
+  width: 23%;
+}
+.nf-when-container .nf-when::after {
+  clear: both;
+  content: "";
+  display: block;
+}
+
+.nf-then-container {
+  background: #fefefe;
+  padding: 10px;
+}
+.nf-then-container .nf-one-fourth {
+  width: 30.5%;
+}
+.nf-then-container .nf-one-fourth:first-child {
+  padding-left: 12px;
+}
+.nf-then-container .nf-then::after {
+  clear: both;
+  content: "";
+  display: block;
+}
+
+.nf-else-container {
+  background: #ddd;
+  padding: 10px;
+}
+.nf-else-container .nf-one-fourth {
+  width: 30.5%;
+}
+.nf-else-container .nf-one-fourth:first-child {
+  padding-left: 12px;
+}
+.nf-else-container .nf-else::after {
+  clear: both;
+  content: "";
+  display: block;
+}
+
+.nf-add-when,
+.nf-add-then,
+.nf-add-else {
+  color: #2BAAE7;
+  cursor: pointer;
+  font-size: 22px;
+  margin-bottom: 5px;
+  padding-left: 12px;
+}
+
+.nf-remove-then,
+.nf-remove-else,
+.nf-remove-when {
+  color: red;
+  cursor: pointer;
+}
+
+.nf-one-fourth {
+  float: left;
+  margin-bottom: 15px;
+  padding: 0 2%;
+  width: 25%;
+}
+.nf-one-fourth::after {
+  clear: both;
+  content: "";
+  display: block;
+}
+
+.nf-condition.actions .nf-when-container {
+  padding: 20px;
+}
+.nf-condition.actions .nf-one-third {
+  width: 40%;
+}
+.nf-condition.actions .nf-one-third:nth-child(2) {
+  width: 20%;
+}
+.nf-condition.actions .nf-one-third.action-when-label {
+  padding-top: 16px;
+  text-align: center;
+  text-transform: uppercase;
+  font-weight: bold;
+}
+.nf-condition.actions .nf-one-fourth {
+  width: 30.8%;
+}
+.nf-condition.actions .nf-one-fourth:first-child {
+  width: 7.5%;
+}
+.nf-condition.actions .nf-when::after {
+  clear: both;
+  content: "";
+  display: block;
+}
+/*# sourceMappingURL=builder.css.map */

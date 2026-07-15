@@ -1,0 +1,29 @@
+p#confirmedpending_field {
+    display: none!important;
+}
+#currentuser_field{
+    display: none;
+}
+//intellicut plus renewal
+
+// #lytrod_renewal_current_product_name_intellicut_plus_renewal_field,#lytrod_renewal_current_product_id_intellicut_plus_renewal_field,
+// #lytrod_renewal_serial_number_intellicut_plus_renewal_field,#lytrod_renewal_serial_number_intellicut_plus_renewal_field,
+// #lytrod_renewal_years_plus_upgrade_field{
+//     display: none;
+// }
+// .woocommerce-billing-fields *:not(.woocommerce-billing-fields__field-wrapper){
+//     display: none;
+// }
+// .woocommerce-billing-fields{
+//     display: none;
+//     .woocommerce-billing-fields__field-wrapper{
+//         display: block;
+//     }
+// }
+
+.woocommerce-billing-fields > .form-row {
+    display: none;
+}
+.lytrodduplicates{
+    display: none;
+}

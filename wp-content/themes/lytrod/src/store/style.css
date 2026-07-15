@@ -1,0 +1,50 @@
+.footercontainer {
+    /* position: absolute!important; */
+    bottom: 0;
+    width: 100%;
+}
+
+.woocommerce-product-details__short-description p{
+    font-family: 'Raleway', sans-serif;
+    line-height: 25px;
+}
+
+.quantity input{
+    height: 36px;
+    margin-right: 50px;
+}
+
+button.single_add_to_cart_button{
+    background-color: #0d4d95!important;
+}
+.product_title.entry-title{
+    font-size: 25px!important;
+    margin-bottom: 20px;
+}
+.price{
+    color: black!important;
+    margin-bottom: 20px;
+    display: flex;
+}
+.price span.from {
+    margin-right: 10px;
+    margin-left: -5px;
+}
+
+.summary.entry-summary{
+    min-height: 30vh;
+
+}
+
+#page .containery {
+    min-height: 61.6vh;
+}
+.store_add_to_cart{
+    background: #0c4e96;
+    padding: 15px;
+    color: white;
+    font-size: 15px;
+}
+.store_add_to_cart:hover{
+    color: white;
+}

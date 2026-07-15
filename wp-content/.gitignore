@@ -1,0 +1,156 @@
+##============================ WORDPRESS SPECIFIC ============================##
+.well-known
+wp-config-db.php
+readme.html
+*phpMyAdmin*/
+*searchandreplace*/
+*SRDB*/
+.maintenance*
+robots.txt
+branding
+downloads
+install
+publications
+showcase
+brand_assets
+wp-admin
+wp-includes
+/webtoffee_iew_log
+/webtoffee_import
+/all-in-one-wp-migration
+/plugins/all-in-one-wp-migration
+/ai1wm-backups
+#==============================================================================#
+#     Ignore uploads and cache dirs only, track rest of              #
+#     You cannot un ignore subfiles or folders inside of uploads               #
+#==============================================================================#
+/uploads
+/w3tc-config/
+/updraft/
+/backup*
+/gallery/
+/fancygallery/
+/files_mf/
+/managewp/
+/envato-backups/
+/wflogs/
+/ewww/
+/mmr/
+/mysql-dumps/
+/plugins/woocommerce-atlas/tools/format-import-data/csv/formatted/*
+/plugins/woocommerce-atlas/tools/format-import-data/csv/source/*
+
+##### CACHE Files #####
+/advanced-cache.php
+/wp-cache-config.php
+/object-cache.php
+/db.php
+/wpo-cache/config/
+/wfcache/
+/cache/
+
+#==============================================================================#
+#     Specific Themes   (By default we remove the pre-loaded themes)           #
+#==============================================================================#
+/themes/twenty*
+
+#==============================================================================#
+#     Specific Plugins - since this is a staging site we want some debugging   #
+#==============================================================================#
+/plugins/disable-emails/
+/plugins/email-log/
+/plugins/wp-all-export-pro/
+/plugins/wpae-woocommerce-add-on/
+/plugins/yith-woocommerce-catalog-mode/
+/plugins/members/
+/plugins/user-role-editor/
+/plugins/which-template-file/
+
+#==============================================================================#
+#     File level ignores  -  Keep these at the end so they override any        #
+#     negation (!) statements at the directory level (like !dir/*  -   We      #
+#     still want to ignore these files even if we are `unignoring` a dir that  #
+#     contains one of these files )                                            #
+#==============================================================================#
+
+# OS Excludes #
+
+#==================#
+#     OS Files     #
+#==================#
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+*[Tt]humbs.db
+*.Trashes
+.modgit/
+
+
+#==================#
+#    Log files     #
+#==================#
+*.log
+error_log
+access_log
+/wflogs/
+/plugins/wordfence/tmp/
+/wphb-logs
+
+#===================================#
+#          npm Files                #
+#===================================#
+node_modules
+*.map
+
+#===================================#
+#       Some Other Files            #
+#===================================#
+.idea
+.phpintel
+.vscode
+.htaccess
+.htpasswd
+package-lock.json
+.ftpconfig
+ttfb.html
+test.html
+info.php
+gulp-env.js
+
+#===================================#
+#     Backups/Compressed Files      #
+#===================================#
+*.7z
+*.dmg
+*.gz
+*.iso
+*.jar
+*.rar
+*.tar
+*.zip
+*.sql
+*.sqlite
+/apple-pay-cert.pem
+nginx.conf
+wp-config.php
+iworx-backup/*
+
+#===================================#
+#  Web Host Specific Directories    #
+#===================================#
+
+
+#===================================#
+#       Plugin Config Files         #
+#===================================#
+
+wordfence-waf.php
+
+#===================================#
+#              Backups              #
+#===================================#
+/updraft/
+/uploads/wp-clone/

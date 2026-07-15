@@ -1,0 +1,53 @@
+.footercontainer{
+    background-color: #262626;
+    min-height: 20vh;
+    display: flex;
+    align-items: center;
+    width: 100%;
+   
+}
+.lytrodcompanyinfo{
+    margin-top: 20px;
+    text-align: center;
+   
+    img{
+        width: 200px;
+    }
+    p{
+        color: white;
+        font-family: 'Raleway', sans-serif;
+        // letter-spacing: 3px;
+        word-spacing: 2px;
+        font-size: 17px;
+        text-align: left;
+    }
+    span{
+      display: flex;
+      justify-content: left;
+        p{
+            color: #c5c5c5;
+           
+        }
+        i{
+            color: white;
+            margin-right: 10px;
+        }
+    }
+}
+.search{
+    display: flex;
+    // justify-content:center;
+    align-items: center;
+    flex-direction: column;
+    h1{
+        color: white;
+        font-family: 'Raleway', sans-serif;
+    }
+    input{
+        width: 300px;
+        height: 40px;
+        border-radius: 5px;
+    }
+   
+    
+}

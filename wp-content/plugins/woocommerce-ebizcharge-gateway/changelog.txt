@@ -1,0 +1,352 @@
+Plugin Name: Woocommerce EBizCharge Gateway
+Plugin URI: https://www.ebizcharge.com/woocommerce-payment-integration
+Description: Accept all major credit cards directly on your WooCommerce site in a seamless and secure checkout environment with EBizCharge.
+Version: 9.7.1
+Author: EBizCharge
+Author URI: https://ebizcharge.com
+License: Apache 2
+
+A Product of Century Business Solutions
+
+Here are latest commits for the EBizCharge plugin updates.
+
+== Changelog ==
+= 9.7.1 - 2025-04-30
+* Added - Compatibility of WooCommerce 9.7.1
+* Added AVS/CVV mismatch warning in admin -> add/update subscriptions
+= 9.6.2 - 2025-03-17
+* Added - Compatibility of WooCommerce 9.6.2
+* Fixed payment issue when order is created from Admin
+* When payment is declined/failed, the order status is updated to 'Failed' instead of 'Pending payment'
+= 9.5.2 - 2025-01-24
+* Added - Compatibility of WooCommerce 9.5.2
+= 9.2.3 - 2024-10-11
+* Added - Compatibility of WooCommerce 9.3.3
+
+= 9.2.3 - 2024-09-11
+* Added - Compatibility of WooCommerce 9.2.3
+
+= 9.0.2 - 2024-07-05
+* Added - Compatibility of WooCommerce 9.0.2
+
+= 8.4 - 2024-02-16 =
+* Fixed - Permalinks and default URL structure is fixed by making it dynamic.
+
+= 8.4 - 2024-01-02 =
+* Added - Compatibility of WooCommerce 8.4
+
+= 8.3.1 - 2023-11-27 =
+* Added - Compatibility of WooCommerce 8.3.1
+
+= 8.2.2 - 2023-11-20 =
+* Added - Compatibility of WooCommerce 8.2.2
+
+= 8.2.1 - 2023-10-24 =
+* Added - Compatibility of WooCommerce 8.2.1
+
+= 8.1.1 - 2023-10-06 =
+* Fixed - Issue on checkout if admin setting not allowed cc or bank both.
+
+= 8.1.1 - 2023-09-28 =
+* Added - Compatibility of WooCommerce 8.1.1
+
+= 8.0.2 - 2023-08-25 =
+* Added compatibility with woocommerce 8.0.2
+
+= 8.0.3 - 2023-09-07 =
+* Fixed - Coupon code minus value orders.
+
+= 7.8.2 - 2023-08-27 =
+* Added - HPOS compatibility.
+
+= 7.8.2 - 2023-07-07 =
+* Added -   3DS validations implemented.
+* Added -   EbizCharge build updated.
+
+= 7.7.2 - 2023-06-16 =
+* Fixed -   Auto disable after exception.
+* Added -   Ebiz logs are added in WooCommerce logs.
+
+= 7.5.1 - 2023-03-23 =
+* Added -   EbizCharge CVV feild added on checkout.
+* Added -   EbizCharge build updated.
+
+= 7.4.1 - 2023-03-15 =
+* Added -   EbizCharge CC/ACH setting show/hide based on gateway flag.
+
+= 7.4.1 - 2023-03-06 =
+* Added -   EbizCharge compatibility added for WooCommerce Version 7.4.1.
+* Added -   Subscription notification added for Guest.
+* Added -   Expired Credit Card transaction error notification.
+
+= 7.4.0 - 2023-02-20 =
+* Added -   EbizCharge compatibility added for WooCommerce Version 7.4.0.
+
+= 7.3.0 - 2023-02-15 =
+* Added -   Payment methods show/hide on checkout page.
+* Fixed -   Expiration dates for update/add subscription fixed.
+* Fixed -   Credit card types validated before order.
+
+= 6.5.1 - 2022-10-20 =
+* Fixed -   Payment history page export issues.
+* Added -   Expiration date added on checkout update method.
+* Removed - Removed explaination sentences on checkout page.
+* Fixed -   Expiration date validations added.
+* Fixed -   Alert messages for create subscription orders.
+
+
+= 6.5.1 - 2022-09-13 =
+* Fixed - Payment history page issues.
+* Fixed - Payment history page search results.
+* Fixed - Clear search result button.
+* Fixed - Bank account fields validation.
+* Fixed - Alert messages for unchecked checkboxes for export functions.
+
+
+= 6.5.1 - 2022-05-13 =
+* Added - Compatibility of WooCommerce 6.5.1
+
+
+= 6.4.1 - 2022-04-08 =
+* Added - Compatibility of WooCommerce 6.4.1
+
+
+= 6.3.1 - 2022-03-11 =
+* Added - Compatibility of WooCommerce 6.3.1
+
+
+= 6.2.1 - 2022-02-25 =
+* Added - Compatibility of WooCommerce 6.2.1
+
+
+= 6.2.0 - 2022-02-18 =
+* Added - Compatibility of WooCommerce 6.2.0
+
+
+= 6.0 - 2021-12-30 =
+* Added - Compatibility of WooCommerce 6.0
+
+
+= 5.9 - 2021-11-20 =
+* Added - Compatibility of WooCommerce 5.9
+
+
+= 5.8 - 2021-10-25 =
+* Added - Compatibility of WooCommerce 5.8
+
+
+= 5.7.1 - 2021-10-21 =
+* Added - Compatibility of WooCommerce 5.7.1
+
+
+= 5.6 - 2021-08-30 =
+* Added - Compatibility of WooCommerce 5.6
+* Added - Subscription functionality for products.
+* Added - Bank account payments (ACH).
+
+= 5.5 - 2021-08-23 =
+* Added - Compatibility of WooCommerce 5.5
+
+
+= 5.4 - 2021-06-23 =
+* Added - Compatibility of WooCommerce 5.4
+
+
+= 5.3.0 - 2021-05-17 =
+* Added - Compatibility of WooCommerce 5.3.0
+
+
+= 5.1.0 - 2021-03-22 =
+* Added - Compatibility of WooCommerce 5.1.0
+
+
+= 5.0 - 2021-03-12 =
+* Added - Compatibility of WooCommerce 5.0
+
+
+= 4.9.2 - 2021-02-08 =
+* Added - Compatibility of WooCommerce 4.9.2
+
+
+= 4.9.1 - 2021-02-01 =
+* Added - Compatibility of WooCommerce 4.9.1
+
+
+= 4.9.0- 2021-01-28 =
+* Added - Compatibility of WooCommerce 4.9.0
+* Added - 'Save this Payment method' will be visible to Guest customer as well.
+
+
+= 4.8.0- 2021-12-16 =
+* Added - Compatibility of WooCommerce 4.8.0
+
+
+= 4.7.1- 2021-12-01 =
+* Added - Compatibility of WooCommerce 4.7.1
+* Fixed - key: "[EBIZCHARGE]|methodid|refnum|authcode|avsresultcode|cvv2resultcode|woocommerceorderid|paymethod"
+
+
+= 4.7.0- 2020-11-24 =
+* Added - Compatibility of WooCommerce 4.7.0
+
+
+= 4.6.2- 2020-11-18 =
+* Added - Compatibility of WooCommerce 4.6.2
+
+
+= 4.6.1- 2020-11-05 =
+* Added - Compatibility of WooCommerce 4.6.1
+
+
+= 4.6.0- 2020-10-26 =
+* Added - Compatibility of WooCommerce 4.6.0
+
+
+= 4.5.2- 2020-09-24 =
+* Added - Compatibility of WooCommerce 4.5.2
+
+
+= 4.1.1- 2020-09-02 =
+* Added - Compatibility of WooCommerce 4.1.1
+
+
+= 4.3.3- 2020-08-24 =
+* Added - Compatibility of WooCommerce 4.3.3
+
+
+= 4.3.2- 2020-08-14 =
+* Added - Compatibility of WooCommerce 4.3.2
+
+
+= 4.3.1- 2020-08-03 =
+* Added - Compatibility of WooCommerce 4.3.1
+
+
+= 4.3.0- 2020-07-11 =
+* Added - Compatibility of WooCommerce 4.3.0
+
+
+= 4.3.0- 2020-07-11 =
+* Added - Compatibility of WooCommerce 4.3.0
+
+
+= 4.2.2- 2020-06-02 =
+* Added - Compatibility of WooCommerce 4.2.2
+
+
+= 4.2- 2020-06-12 =
+* Added - Compatibility of WooCommerce 4.2
+
+
+= 4.1.1- 2020-06-01 =
+* Added - Compatibility of WooCommerce 4.1.1
+
+
+= 4.1- 2020-05-12 =
+* Added - Compatibility of WooCommerce 4.1
+
+
+= 4.0.1- 2020-04-27 =
+* Added - Compatibility of WooCommerce 4.0.1
+
+
+= 4.0- 2020-03-27 =
+* Added - Compatibility of WooCommerce 4.0
+
+
+= 3.9.3- 2020-03-18 =
+* Added - Compatibility of WooCommerce 3.9.3
+
+
+= 3.9.2- 2020-02-24 =
+* Added - Compatibility of WooCommerce 3.9.2
+* Added - Download 'Customers'
+* Added - Download 'Products'
+* Added - Download 'Orders'
+
+
+= 3.9.1- 2020-02-03 =
+* Added - Compatibility of WooCommerce 3.9.1
+
+
+= 3.9- 2020-01-24 =
+* Added - Compatibility of WooCommerce 3.9
+
+
+= 3.8- 2019-11-05 =
+* Added - Compatibility of WooCommerce 3.8
+
+
+= 3.7.1- 2019-10-16 =
+* Added - Compatibility of WooCommerce 3.7.1
+
+
+= 3.7- 2019-08-23 =
+* Added - Compatibility of WooCommerce 3.7
+
+
+= 3.6.5- 2019-07-23 =
+* Added - Compatibility of WooCommerce 3.6.5
+
+
+= 3.5.1- 2019-04-24 =
+* Added - Econnect sync sales order feature
+
+
+= 3.5.1- 2019-01-25 =
+* Added - Compatibility of WooCommerce 3.5.1
+* Added - Econnect - option to sync customers
+* Added - Econnect - option to sync products
+* Added - Econnect - option to sync invoices
+* Added - Enable / Disable Econnect sync options
+* Added - If Econnect enabled, the new added customers and invoices automatically synced
+
+
+= 3.5- 2019-01-25 =
+* Added - Compatibility with woocommerce 3.5
+* Added - Added payment refund functionality
+
+
+= 3.5- 2018-11-01 =
+* Added - Econnect - option to sync customers
+* Test - Applied test cases
+* Enhanced - soap parameters added
+* Fix - Bulk capture orders
+* Update - Build
+
+
+= 3.4.5- 2018-10-10 =
+* Added - Compatibility with woocommerce 3.4.5
+* Added - Product deccriptionin lineitems
+* Added - Soap cachea parameters
+* Update - Build
+
+
+= 3.4.4- 2018-08-03 =
+* Added - Compatibility with woocommerce 3.4.4
+* Test - Applied test cases
+
+
+= 3.4.3- 2018-07-06 =
+* Added - Compatibility with woocommerce 3.4.3
+* Fix - Admin side css
+
+
+= 3.4.1- 2018-05-31 =
+* Added - Compatibility with woocommerce 3.4.1
+* Fix - Admin side css
+
+
+= 3.1.3- 2018-05-30 =
+* Added - Compatibility with woocommerce 3.1.3
+* Fix - Admin side css
+
+
+= 3.1.3- 2018-05-30 =
+* Made - Plugin compatible with PHP version 7.2.1, apche 2.4.27 and woocommerce 3.4.1
+* Added - Search customer functionality before save card.
+* Added - Checks before add new card if customer not exist on ebiz merchant account it will add new.
+* Added - If customer not exist on ebiz added new and already existed cards data in DB will be cleared.
+* Added - Admin can enable or disable card save functionality on single click for both My account page and cart page.
+* Removed - Some depricated functions.
+* Updated - Some depricated functions.

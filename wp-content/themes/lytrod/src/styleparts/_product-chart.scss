@@ -1,0 +1,37 @@
+.wrapper {
+    background: #99c5e6;
+    min-height: 40vh;
+  }
+  
+  @media (max-width: 768px) {
+    .main-header {
+      font-size: 25px;
+    }
+  }
+  
+  .table td, .table th {
+    font-size: 17px;
+  }
+  
+  @media (max-width: 992px) {
+    .table td, .table th {
+      font-size: 15px;
+    }
+  }
+  
+  @media (max-width: 768px) {
+    .table td, .table th {
+      font-size: 11px;
+    }
+  }
+  
+  .fa.fa-check {
+    font-size: 20px!important;
+  }
+  
+  @media (max-width: 768px) {
+    .fa.fa-check {
+      font-size: 15px!important;
+    }
+  }
+  

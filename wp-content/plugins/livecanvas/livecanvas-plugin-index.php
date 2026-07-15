@@ -1,0 +1,2013 @@
+<?php
+/*
+Plugin Name: LiveCanvas
+Description: Build better Web pages. An awesome live HTML editor focused on speed and code quality.
+Version: 4.9.3
+Author: The LiveCanvas Team
+Author URI: https://www.livecanvas.com
+*/
+
+// EXIT IF ACCESSED DIRECTLY.
+defined( 'ABSPATH' ) || exit;
+
+//DEFINE SCRIPTS VERSION
+if (strpos($_SERVER['REQUEST_URI'], '/livecanvas-dev/') !== false)	define("LC_SCRIPTS_VERSION", rand(0, 1000)); else define("LC_SCRIPTS_VERSION", "4.9.2");
+
+if (!defined('DS')) {
+	define('DS', DIRECTORY_SEPARATOR);
+}
+
+//DEFINE MUST USE CONSTANTS
+define('LC_MU_PLUGIN_NAME', 'livecanvas-must-use-plugin.php');
+define('LC_MU_PLUGIN_TEMPLATE', 'livecanvas-must-use-plugin.template');
+define('LC_MU_PLUGIN_DIR', dirname(__FILE__) . DS . 'mu' . DS);
+
+if (!defined('LC_MU_PLUGIN')) {
+	define('LC_MU_PLUGIN', WPMU_PLUGIN_DIR . DS . LC_MU_PLUGIN_NAME);
+}
+
+//MODULES
+if ( ! defined('TANGIBLE_LOGIC_VERSION') && ! defined('LC_DISABLE_TANGIBLE') ) {
+	require __DIR__ . '/vendor/tangible/template-system/index.php'; //comment this row to disable <tangible>
+}
+require(plugin_dir_path(__FILE__) . 'modules/rest-api.php');
+require(plugin_dir_path(__FILE__) . 'modules/admin-page-switch.php');
+require(plugin_dir_path(__FILE__) . 'modules/onboarding.php');
+require(plugin_dir_path(__FILE__) . 'modules/demo-content-setup.php');
+require(plugin_dir_path(__FILE__) . 'modules/plugin-settings-pages.php');
+require(plugin_dir_path(__FILE__) . 'modules/plugin-apikey-settings.php');
+require(plugin_dir_path(__FILE__) . 'modules/plugin-apikey-autoissue.php');
+require(plugin_dir_path(__FILE__) . 'modules/plugin-ai-integration-settings.php'); 
+require(plugin_dir_path(__FILE__) . 'modules/optin-extras.php');
+require(plugin_dir_path(__FILE__) . 'modules/custom-elements/custom-elements-support.php');
+require(plugin_dir_path(__FILE__) . 'modules/shortcodes.php');
+require(plugin_dir_path(__FILE__) . 'modules/media-selector.php');
+require(plugin_dir_path(__FILE__) . 'modules/starter-content.php');
+
+//FORMS
+require(plugin_dir_path(__FILE__) . 'modules/forms/form-activator-shortcode.php');
+require(plugin_dir_path(__FILE__) . 'modules/forms/test.php');
+require(plugin_dir_path(__FILE__) . 'modules/forms/contact.php');
+require(plugin_dir_path(__FILE__) . 'modules/forms/login.php');
+require(plugin_dir_path(__FILE__) . 'modules/forms/registration.php');
+
+// FOR DYNAMIC TEMPLATING ONLY
+if (lc_plugin_option_is_set("enable-dynamic-templating")):
+	require(plugin_dir_path(__FILE__) . 'modules/templating.php');
+	require(plugin_dir_path(__FILE__) . 'modules/templating-admin.php');
+    require(plugin_dir_path(__FILE__) . 'modules/post-specific-dynamic-template-choice-ux.php');
+	if( !isset($_GET['lc_dynamic_template']) &&  (!is_admin() OR wp_doing_ajax())  && (!isset($_GET['post_type']) OR $_GET['post_type']!='lc_dynamic_template')) {
+		require(plugin_dir_path(__FILE__) . 'modules/templating-shortcodes.php');
+	}
+endif;
+
+// FOR WOOCOMMERCE
+if (lc_is_plugin_active('woocommerce/woocommerce.php')):
+    // WooCommerce is installed and active
+	if( !isset($_GET['lc_dynamic_template']) &&  (!is_admin() OR wp_doing_ajax())  && (!isset($_GET['post_type']) OR $_GET['post_type']!='lc_dynamic_template')) {
+		require(plugin_dir_path(__FILE__) . 'modules/templating-shortcodes-woocommerce.php');
+		require(plugin_dir_path(__FILE__) . 'modules/templating-shortcodes-woocommerce-extras.php');
+	}
+endif;
+
+// THIRD PARTY COMPATIBILITY TWEAKS
+require(plugin_dir_path(__FILE__) . 'modules/thirdparty-compatibility-extras.php');
+
+//FOR CLEANING OUT OUTPUT
+require(plugin_dir_path(__FILE__) . 'modules/content-filtering.php');
+
+//MUST USE STUFF ///
+
+//must use plugin tearup
+function lc_must_use_writer() {
+	if(!file_exists(WPMU_PLUGIN_DIR)) {
+		mkdir(WPMU_PLUGIN_DIR, 0755, true);
+	}
+	$fileContent = file_get_contents(LC_MU_PLUGIN_DIR .  LC_MU_PLUGIN_TEMPLATE);
+	file_put_contents(LC_MU_PLUGIN, $fileContent);
+}
+
+//must use plugin teardown
+function lc_must_use_deleter() {
+	unlink(LC_MU_PLUGIN);
+}
+
+// on plugin activation / deactivation, copy or delete must use plugin
+register_activation_hook( __FILE__, 'lc_must_use_writer');
+register_deactivation_hook( __FILE__, 'lc_must_use_deleter');
+
+//take care of must use option changes / update check
+add_action('init', 'lc_check_mu_actions');
+function lc_check_mu_actions() {
+
+	//check if we have to add the file
+	if (!lc_plugin_option_is_set('disable-mu-plugin') && !file_exists(LC_MU_PLUGIN)) {
+		lc_must_use_writer();
+	}
+
+	//check if we have to remove the file
+	if (lc_plugin_option_is_set('disable-mu-plugin') && file_exists(LC_MU_PLUGIN)) {
+		lc_must_use_deleter();
+	}
+
+	//check if we need to update mu plugin, but only while editing pages
+	if (isset($_GET["lc_action_launch_editing"]) && file_exists(LC_MU_PLUGIN) && file_exists(LC_MU_PLUGIN_DIR . LC_MU_PLUGIN_TEMPLATE)) {
+		include_once ABSPATH . 'wp-admin' . DS . 'includes' . DS . 'plugin.php';
+		$templateData = get_plugin_data(LC_MU_PLUGIN_DIR . LC_MU_PLUGIN_TEMPLATE);
+		$muPluginData = get_plugin_data(LC_MU_PLUGIN);
+		if(version_compare($muPluginData['Version'], $templateData['Version'], '<')) {
+			lc_must_use_writer();
+		}
+		unset($templateData);
+		unset($muPluginData);
+	}
+}
+
+// create a script tag to be added in all pages near the footer with id lc_script_tag
+add_action('wp_footer', 'lc_global_script_tag');
+function lc_global_script_tag() {
+	?>
+	<script id="lc_script_tag" type="module"><?php echo lc_get_partial_by_cf("is_global_js") ?></script>
+	<?php
+}
+
+
+//GENERAL MICRO UTILITIES
+function lc_is_plugin_active($plugin) {
+    $a = (array) get_option('active_plugins', []);
+    return (is_multisite() && isset(get_site_option('active_sitewide_plugins', [])[$plugin])) || in_array($plugin, $a);
+}
+
+function lc_print_editor_url() { echo esc_url(plugin_dir_url( __FILE__ ).'editor/'); }
+
+function lc_get_current_url(){
+    $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || $_SERVER['SERVER_PORT'] == 443 ? "https://" : "http://";
+    $host = $_SERVER['HTTP_HOST'];
+    $uri = $_SERVER['REQUEST_URI'];
+
+    return $protocol . $host . $uri;
+}
+
+//make an URL safe to use as GET parameter
+function lc_urlencode($url){
+    $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || $_SERVER['SERVER_PORT'] == 443 ? "https://" : "http://";
+    $host = $_SERVER['HTTP_HOST'];
+    $url = str_replace($protocol . $host , '', $url);
+    return urlencode($url);
+}
+function lc_plugin_option_is_set($option_name){
+	$lc_settings = get_option('lc_settings');
+	$lc_settings = apply_filters('lc_settings', $lc_settings);
+	return (isset($lc_settings[$option_name]));
+}
+
+function lc_get_license_code(){
+	$lc_settings = get_option('lc_settings');
+	if(!$lc_settings OR !isset($lc_settings['license-code']) OR strlen($lc_settings['license-code'])<4 )  return FALSE; else return $lc_settings['license-code'];
+}
+
+//function to get active parent theme information
+function lc_get_parent_theme_info( $parameter = "Name" ){
+
+	if (get_template_directory() === get_stylesheet_directory())  { $my_theme = wp_get_theme(); } else { $my_theme = wp_get_theme()->parent(); }
+	if(!empty($my_theme)) return  $my_theme->get( $parameter );
+}
+
+function lc_get_main_bs_version(){ // eg 4 or 5
+	$bs_version = "4"; //as default
+	if (function_exists('lc_theme_bootstrap_version')) $bs_version = intval(lc_theme_bootstrap_version()); //get from theme custom function
+	if (lc_plugin_option_is_set('enable-bs-5') ) { $bs_version = "5"; } // or force via plugin option
+	return $bs_version;
+}
+
+function lc_get_bootstrap_version(){ //eg 4, 5, 5.3
+	$bs_version = "4"; //as default
+	if (function_exists('lc_theme_bootstrap_version')) $bs_version = lc_theme_bootstrap_version(); //get from theme custom function
+	if (lc_plugin_option_is_set('enable-bs-5') ) { $bs_version = "5.3"; } // or force via plugin option
+	return $bs_version;
+}
+// GET FRAMEWORK VERSION
+function lc_get_framework_slug(){
+
+	//if present, use value from the Theme
+	if (function_exists('lc_define_editor_config')){
+		return lc_define_editor_config('config_file_slug');
+	}
+
+	// if (is_plugin_active( 'windpress/windpress.php' ) ) { //a bit dangerous today, let's move to a more conservative way
+
+	$config_slug = "bootstrap-".lc_get_bootstrap_version();
+	return $config_slug;
+}
+//IF NO APIKEY IS PRESENT, SHOW NAG
+add_action('admin_notices', function(){
+
+	if (lc_get_apikey()) return; //exit if not necessary
+	lc_try_autoissue_apikey_from_license_func();
+	if (lc_get_apikey()) return; //exit if just activated
+
+	$screen = get_current_screen();
+	if ($screen->base=='livecanvas_page_livecanvas_license'  ) return;
+	?>
+	<div class="notice error is-dismissible" style="padding:15px">
+		<img src="<?php echo esc_url(plugin_dir_url( __FILE__ ).'images/lc-logo.svg'); ?>" style="width:250px;height: auto";>
+		<p style=font-size:1rem>Please activate your product</a></p>
+		<p>To enable automatic plugin updates and access to the Library, a valid license code is needed.<br><br></p>
+		<?php if (is_main_site()) { ?>
+		<a  class="button button-primary button-hero " href="<?php	echo esc_attr(admin_url("/admin.php?page=livecanvas_license")); ?>">Activate LiveCanvas</a>
+		<?php } else { ?>
+			<p><b>Please perform activation from the main site of your Multisite install.</b></p>
+		<?php
+		}
+		?>
+	</div> <?php
+});
+
+
+//FUNCTION TO DETERMINE IF POST IS USING LIVECANVAS
+function lc_post_is_using_livecanvas($post_id) {
+	//old take, keep for compat test here
+	//return (get_post_meta($post_id, '_lc_livecanvas_enabled', true) == '1' OR 'lc_block' === get_post_type() OR 'lc_section' === get_post_type() OR 'lcr_section' === get_post_type() OR 'lc_partial'  === get_post_type()  );
+	return (
+		in_array(get_post_type($post_id), array('lc_block', 'lc_section', 'lc_partial', 'lc_dynamic_template')) OR
+		get_post_meta($post_id, '_lc_livecanvas_enabled', true) == '1'
+	);
+
+}
+
+// UTILITY: ALLOW SVG  (4 admins) AND WEBP IMAGE UPLOADS  /////////
+add_filter('upload_mimes',function ($mimes){
+	 if (current_user_can('administrator')) $mimes['svg'] = 'image/svg+xml';
+	 $mimes['webp'] = 'image/webp';
+	 return $mimes;
+});
+
+/////// CHECK URL ACTIONS IN FRONTEND ////////////////////////////////
+add_action('template_redirect', 'lc_check_url_actions');
+function lc_check_url_actions() {
+
+	//IF THE USER TRIES TO EDIT BUT ITS NOT LOGGED IN, LET HIM LOG IN
+	if (!is_user_logged_in() && isset($_GET['lc_action_launch_editing'])) {
+		wp_redirect(wp_login_url(add_query_arg(array('lc_action_launch_editing' => '1', 'from_url' => lc_urlencode(get_permalink())), get_permalink())));
+		exit;
+	}
+
+	//DEMO MODE ONLY
+	if (function_exists('lc_demo_enabled') && isset($_GET['lc_action_launch_demo']) && $_GET['lc_action_launch_demo'] == "1") {	include(plugin_dir_path(__FILE__) . 'editor/editor.php');	die;	}
+
+	//FOLLOWING STUFF IS ONLY FOR SUPER ADMINS AND WHEN EDITING IS ENABLED
+	if (!current_user_can("edit_pages")) return;
+
+	//EDITOR
+	if (isset($_GET['lc_action_launch_editing']) && $_GET['lc_action_launch_editing'] == "1" && lc_get_apikey()) {	include(plugin_dir_path(__FILE__) . 'editor/editor.php');	die;	}
+
+	//EDITOR REDIRECT
+
+	if (isset($_GET['lc_redirect_to_edit_post_id']) ) {	wp_redirect( ( add_query_arg( array('lc_action_launch_editing' => '1', 'from_url' => lc_urlencode(get_permalink($_GET['lc_redirect_to_edit_post_id'])),'from_page_edit' =>'1'), get_permalink($_GET['lc_redirect_to_edit_post_id']))));	die;	}
+
+	//FA4
+	if (isset($_GET['lc_action']) && $_GET['lc_action'] == "load_fa4_icons") {		include(plugin_dir_path(__FILE__) . 'editor/icons/icons-fontawesome-4.html');		die;	}
+	//BOOTSTRAP ICONS
+	if (isset($_GET['lc_action']) && $_GET['lc_action'] == "load_bs_icons") {		include(plugin_dir_path(__FILE__) . 'editor/icons/icons-bootstrap.html');		die;	}
+
+	/// FA 5
+	if (isset($_GET['lc_action']) && $_GET['lc_action'] == "load_fa5-regular_icons") {		include(plugin_dir_path(__FILE__) . 'editor/icons/icons-fa5-regular.html');		die;	}
+	if (isset($_GET['lc_action']) && $_GET['lc_action'] == "load_fa5-brands_icons") {		include(plugin_dir_path(__FILE__) . 'editor/icons/icons-fa5-brands.html');		die;	}
+	if (isset($_GET['lc_action']) && $_GET['lc_action'] == "load_fa5-solid_icons") {		include(plugin_dir_path(__FILE__) . 'editor/icons/icons-fa5-solid.html');		die;	}
+
+	//MDI
+	if (isset($_GET['lc_action']) && $_GET['lc_action'] == "load_mdi_icons") {		include(plugin_dir_path(__FILE__) . 'editor/icons/icons-mdi.html');		die;	}
+
+} //end function
+
+/////// CHECK URL ACTIONS IN BACKEND ////////////////////////////////
+add_action("admin_init", "lc_check_url_actions_backend");
+function lc_check_url_actions_backend() {
+
+	if (!current_user_can("edit_pages")) return; //EDITORS ONLY allowed here below
+
+	if ( isset($_GET['lc_action_new_page']) OR isset($_GET['lc_action_clone_page']) ) {
+
+		//we have to create  a new lc page, or to clone a post: let's prepare the data
+
+		if (isset($_GET['lc_action_clone_page']) ){
+			//clone case
+			$post_title = get_post_field('post_title', $_GET['lc_original_page_id'], 'raw') . " - Copy";
+			$post_content = get_post_field('post_content', $_GET['lc_original_page_id'], 'raw');
+			$post_type = get_post_field('post_type', $_GET['lc_original_page_id'], 'raw');
+			$livecanvas_enabled = (get_post_meta($_GET['lc_original_page_id'], '_lc_livecanvas_enabled', true) == '1');
+			$template = get_post_meta($_GET['lc_original_page_id'], '_wp_page_template', true);
+
+		} else {
+			//new lc page case
+			if (isset($_GET['lc_page_name'])) $post_title = $_GET['lc_page_name']; else	$post_title = 'Untitled LiveCanvas Page';
+			$post_content = '';
+			$post_type = 'page';
+			$livecanvas_enabled = TRUE;
+			$template = 'page-templates/empty.php';
+		}
+
+		//insert the new post
+		$post_id = wp_insert_post(array('post_title' => $post_title, 'post_status' => 'draft', 'post_type' => $post_type, 'post_content' => $post_content));
+
+		if ($livecanvas_enabled) update_post_meta($post_id, '_lc_livecanvas_enabled', 1);
+		update_post_meta($post_id, '_wp_page_template', $template);
+
+		//now redirect to edit the newly created post
+		if ($livecanvas_enabled) wp_redirect(add_query_arg(array('lc_action_launch_editing' => '1', 'from_url' => lc_urlencode(get_permalink($post_id))), get_permalink($post_id))); else
+			wp_redirect( admin_url('post.php?post=' . $post_id . '&action=edit') );
+
+		exit;
+
+	} //end if
+
+
+
+
+} //end func
+
+
+////////HIDE TOOLBAR IF EDITING ////////////////////////////
+add_action('wp_loaded', 'lc_check_early_actions');
+function lc_check_early_actions() {
+	if (isset($_GET['lc_page_editing_mode'])) {
+		add_filter('show_admin_bar', '__return_false');
+		add_filter('edit_post_link', '__return_false');
+	}
+
+}
+
+////////////PAGE HTML & CSS SAVING /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+function lc_tweak_css($css){$css= (stripslashes($css));$css=trim(preg_replace('/\t+/', '', $css));return $css; }
+
+
+add_action('wp_ajax_lc_save_page', 'lc_ajax_save_page_func');
+
+function lc_ajax_save_page_func() {
+
+    //check if user has right to edit that page
+    if ( !check_ajax_referer( 'lc_save_page','security' ) OR !current_user_can( 'edit_post', $_POST['post_id']) ) {
+        //unauthorized
+        echo "Error!";
+	    wp_die();
+    }
+
+	$current_template = get_post_meta($_POST['post_id'], '_wp_page_template', true);
+
+	$update_post = array(
+		'ID' => $_POST['post_id'],
+		'post_content' => $_POST['html_to_save']
+	);
+
+	//UPDATE THE PAGE CONTENT INTO THE DATABASE
+	remove_all_shortcodes(); //https://stackoverflow.com/questions/49238257/preventing-shortcode-execution-with-wp-update-post
+	$the_update = wp_update_post($update_post);
+
+	//UPDATE GLOBAL CSS, if it's different from current one
+	if (wp_get_custom_css_post() != lc_tweak_css($_POST['css_to_save'])) wp_update_custom_css_post(lc_tweak_css($_POST['css_to_save']));
+
+	//UPDATE GLOBAL JS
+    lc_update_partial_by_cf("is_global_js", stripslashes($_POST['js_to_save']));
+
+	//FOR COMPATIBILITY WITH LC ON POSTS: SINCE THE UPDATE WE JUST DONE BEFORE F*CKS UP THE  CHOSEN TEMPLATE FIELD, RESTORE IT
+	if ( get_post_type( $_POST['post_id'] ) != 'page' ) update_post_meta($_POST['post_id'], '_wp_page_template', $current_template);
+
+    //RETURN STANDARD FEEDBACK
+    if ($the_update == true) echo "Save"; else echo "Error!";
+	
+    wp_die();
+}
+
+function lc_get_partial_by_cf($cf_name) {
+    $posts = get_posts(array(
+        'post_type' => 'lc_partial',
+        'meta_key' => $cf_name,
+        'meta_value' => '1',
+        'post_status' => 'publish',
+        'posts_per_page' => 1
+    ));
+
+    if (!empty($posts)) {
+        // If the post exists, update its content
+        return $posts[0]->post_content;
+    }
+}
+
+function lc_update_partial_by_cf($cf_name, $new_code) {
+
+    $posts = get_posts(array(
+        'post_type' => 'lc_partial',
+        'meta_key' => $cf_name,
+        'meta_value' => '1',
+        'post_status' => 'publish',
+        'posts_per_page' => 1
+    ));
+
+    if (!empty($posts)) {
+        // If the post exists, update its content
+        $post_id = $posts[0]->ID;
+        wp_update_post(array(
+            'ID' => $post_id,
+            'post_content' => $new_code
+        ));
+    } else {
+        // If the post does not exist, create it and set the custom field
+        $new_post_title ='LC Partial ' . $cf_name;
+        if ($cf_name=='is_global_js') $new_post_title = "Global JavaScript Code";
+        $post_id = wp_insert_post(array(
+            'post_type' => 'lc_partial',
+            'post_title' => $new_post_title,
+            'post_content' => $new_code,
+            'post_status' => 'publish'
+        ));
+
+        if ($post_id) {
+            // Update the custom field
+            update_post_meta($post_id, $cf_name, '1');
+        }
+    }
+}
+
+
+///////// SAVE BLOCK / SECTION TO LOCAL LIBRARY /////////////////
+
+add_action('wp_ajax_lc_save_element', 'lc_ajax_save_element_func');
+
+function lc_ajax_save_element_func() {
+
+	if (!current_user_can("edit_pages")) return; //Only for editors	//OLD TAKE FOR CHECKING USERS
+    
+    //Check if user has rights via nonce   //NEW TAKE FOR CHECKING USERS
+   if ( !check_ajax_referer( 'lc_save_page','security' ) ) {
+        //unauthorized
+        echo "Error! Unautorized AJAX request";
+	    wp_die();
+    }
+
+	remove_all_shortcodes(); //https://stackoverflow.com/questions/49238257/preventing-shortcode-execution-with-wp-update-post
+
+	$the_insert=wp_insert_post(array(
+		'post_type' => $_POST['post_type'],
+		'post_title' => $_POST['post_title'],
+		'post_content' => $_POST['post_content'],
+		'post_status' => 'publish'));
+
+
+	if ($the_insert == true) echo "Save"; else echo "Error!";
+	wp_die();
+
+}
+
+//////////// FOR POST LOCKING: RECEIVE PINGS WHILE EDITING and SAVE LAST ACTIVITY DATA  /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+add_action('wp_ajax_lc_ping_server_while_editing', 'wp_ajax_lc_ping_server_while_editing_func');
+
+function wp_ajax_lc_ping_server_while_editing_func() {
+    
+    //Check if user has rights via nonce   //NEW TAKE FOR CHECKING USERS
+    if ( !check_ajax_referer( 'lc_save_page','security' )  OR !current_user_can( 'edit_post', $_POST['post_id'] )) {
+        //unauthorized
+        echo "Error! Unautorized AJAX request";
+	    wp_die();
+    }
+
+    //echo "User ID :" . get_current_user_id() . " is editing   post #" . $_POST['post_id']; //for debug
+
+    $saved_user_id = get_post_meta($_POST['post_id'], '_lc_last_activity_userid', 1);
+    $saved_timestamp = (int) get_post_meta($_POST['post_id'], '_lc_last_activity_timestamp', 1);
+
+     // Check if more than one minute has passed
+    $current_timestamp = current_time('timestamp', true);
+
+    if ($saved_user_id == '' OR $saved_timestamp == '' OR $saved_user_id == get_current_user_id() OR ($current_timestamp - $saved_timestamp)  > 60  )  {
+        //case new access, or same user was editing: ALL OK, store current access
+        $meta_update = update_post_meta($_POST['post_id'], '_lc_last_activity_userid', get_current_user_id());
+        $meta_update = update_post_meta($_POST['post_id'], '_lc_last_activity_timestamp', current_time('timestamp', true));
+        if ($meta_update) echo "[OK]"; else echo "WARNING: Meta Update error";
+    } else {
+        //another user is editing here: notify user
+        $the_userdata = get_user_by( 'id', $saved_user_id );
+        echo "ERROR: The user " . ($the_userdata->display_name) . " is editing the same page. Please check back in a minute.";
+    }
+
+	wp_die();
+
+}
+
+
+//////////// CLOSE EDITING SESSION:  CLEAR LAST ACTIVITY DATA  /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+add_action('wp_ajax_lc_close_editing_session', 'wp_ajax_lc_close_editing_session_func');
+
+function wp_ajax_lc_close_editing_session_func() {
+    
+    //Check if user has rights via nonce   //NEW TAKE FOR CHECKING USERS
+    if ( !check_ajax_referer( 'lc_save_page','security' ) OR !current_user_can( 'edit_post', $_POST['post_id']) ) {
+        //unauthorized
+        echo "Error! Unauthorized AJAX request";
+	    wp_die();
+    }
+
+    $meta_delete = delete_post_meta($_POST['post_id'], '_lc_last_activity_userid');
+    $meta_delete = delete_post_meta($_POST['post_id'], '_lc_last_activity_timestamp');
+
+    echo "[DELETED] ";
+
+	wp_die();
+
+}
+
+
+//POST LOCKING EMERGENCY RESET 
+add_action('add_meta_boxes', function () {
+    global $post;
+    if (!$post || !get_post_meta($post->ID, '_lc_last_activity_userid', true)) {
+        return;
+    }
+    add_meta_box(
+        'lc_editing_notice',
+        __('LiveCanvas Editing Notice', 'text-domain'),
+        'lc_render_editing_notice',
+        null,
+        'side',
+        'high' // Display at the top
+    );
+});
+
+function lc_render_editing_notice($post) {
+    $user_id = get_post_meta($post->ID, '_lc_last_activity_userid', true);
+    $saved_timestamp = (int) get_post_meta($post->ID, '_lc_last_activity_timestamp', true);
+    $time_passed = $saved_timestamp ? human_time_diff($saved_timestamp, current_time('timestamp')) : __('Unknown time', 'text-domain');
+
+    $user_info = get_userdata($user_id);
+    $username = $user_info ? $user_info->display_name : __('Unknown User', 'text-domain');
+    ?>
+    <p>
+        <?php echo esc_html($username); ?> 
+        <?php _e('is editing this document with LiveCanvas.', 'text-domain'); ?>
+    </p>
+    <p>
+        <?php _e('Last seen online:', 'text-domain'); ?> 
+        <strong><?php echo esc_html($time_passed); ?></strong> 
+        <?php _e('ago.', 'text-domain'); ?>
+    </p>
+    <button type="button" class="button" id="lc-reset-lock" data-post-id="<?php echo esc_attr($post->ID); ?>">
+        <?php _e('Reset Lock', 'text-domain'); ?>
+    </button>
+    <script>
+        document.getElementById('lc-reset-lock').addEventListener('click', function () {
+            const postId = this.getAttribute('data-post-id');
+            if (confirm('<?php _e('Are you sure you want to reset the lock?', 'text-domain'); ?>')) {
+                wp.ajax.post('lc_reset_lock', { post_id: postId }).then(() => {
+                    alert('<?php _e('Lock reset successfully.', 'text-domain'); ?>');
+                    location.reload();
+                }).catch(err => {
+                    alert('<?php _e('Failed to reset the lock.', 'text-domain'); ?>');
+                });
+            }
+        });
+    </script>
+    <?php
+}
+
+add_action('wp_ajax_lc_reset_lock', function () {
+    if (!current_user_can('edit_posts') || empty($_POST['post_id'])) {
+        wp_send_json_error(__('Unauthorized', 'text-domain'), 403);
+    }
+    $post_id = intval($_POST['post_id']);
+    delete_post_meta($post_id, '_lc_last_activity_userid');
+    delete_post_meta($post_id, '_lc_last_activity_timestamp');
+    wp_send_json_success();
+});
+
+
+// EDITING TRIGGER LINKS: Place in admin menu bar a link to trigger page editing
+if (lc_get_apikey()) add_action('admin_bar_menu', 'lc_add_toolbar_items', 100);
+function lc_add_toolbar_items($admin_bar) {
+	//check if user has rights to edit,   and that  we are not in editing mode
+	if (!current_user_can("edit_pages") or isset($_GET['lc_action_launch_editing'])) return;
+    if (isset($_GET['compile_sass'])) return;
+
+
+	//ADD LINK: NEW LIVECANVAS PAGE LINK
+	global $wp_admin_bar;
+	if (current_user_can("administrator") OR !lc_plugin_option_is_set("simplified-client-ui"))  $wp_admin_bar->add_node(array(
+		'parent' => 'new-content',
+		'id' => 'lc-add-new-page',
+		'class' => 'ab-item',
+		'title' =>  __((!lc_plugin_option_is_set("whitelabel")? 'LiveCanvas Page Draft':'Frontend Editor Page Draft'), 'livecanvas'),
+		'href' => add_query_arg(array(
+			'lc_action_new_page' => '1'
+		), get_admin_url()),
+		'meta' => array(
+			'onclick' => 'var page_name = prompt("'.__('New page name', 'livecanvas').'", "Untitled LC Page");if (page_name!=null)  window.location = this.getAttribute("href") +"&lc_page_name="+encodeURIComponent(page_name);   return false;'
+		)
+	));
+
+	// ADD LINK: LAUNCH LC EDITING of the page
+	if (is_admin())	return; //ONLY IN FRONTEND
+	if (!is_single() && !is_page())	return; //ONLY SINGLE POSTS OR PAGES OR CPTs
+	if (!lc_post_is_using_livecanvas(get_the_ID()))	return; // the page is not using a LC template
+
+	global $wp_admin_bar;
+	if(!lc_plugin_option_is_set("whitelabel"))
+		$wp_admin_bar->add_node(array(
+			'id' => 'lc-launch-editing',
+			'title' => '<span id="icon-lc-launch-editing"></span>' . __('Edit with', 'livecanvas'),
+			'href' => add_query_arg(array(
+				'lc_action_launch_editing' => '1', 'from_url' => lc_urlencode(lc_get_current_url())
+			))
+		));
+		else
+		$wp_admin_bar->add_node(array(
+			'id' => 'lc-launch-editing',
+			'title' => __('Edit in Frontend', 'livecanvas'),
+			'href' => add_query_arg(array(
+				'lc_action_launch_editing' => '1', 'from_url' => lc_urlencode(lc_get_current_url())
+			))
+		));
+	//OPTIONALLY...
+	//$wp_admin_bar->remove_menu('edit');
+
+	//ADD CHILDS
+	//repeat current page
+	$wp_admin_bar->add_node(array(
+			'id' => 'lc-launch-current-editing',
+			'parent' => 'lc-launch-editing',
+			'title' =>  __('Edit Current Page', 'livecanvas'),
+			'href' => add_query_arg(array(
+				'lc_action_launch_editing' => '1', 'from_url' => lc_urlencode(lc_get_current_url())
+			))
+		));
+	//header
+	if(lc_plugin_option_is_set("header"))  $wp_admin_bar->add_node(array(
+			'id' => 'lc-launch-header-editing',
+			'parent' => 'lc-launch-editing',
+			'title' =>  __('Edit Header', 'livecanvas'),
+			'href' => add_query_arg(array(
+				'lc_action_launch_editing' => '1', 'from_url' => lc_urlencode(lc_get_current_url())), get_permalink(    lc_get_partial_postid('is_header', "1")
+			))
+		));
+	//footer
+	if(lc_plugin_option_is_set("footerV2"))  $wp_admin_bar->add_node(array(
+			'id' => 'lc-launch-footer-editing',
+			'parent' => 'lc-launch-editing',
+			'title' =>  __('Edit Footer', 'livecanvas'),
+			'href' => add_query_arg(array(
+				'lc_action_launch_editing' => '1', 'from_url' => lc_urlencode(lc_get_current_url())), get_permalink(    lc_get_partial_postid('is_footer', "1")
+			))
+		));
+} //end func
+
+// EDITING TRIGGER LINKS FOR DYN TEMPLATES: Place in admin menu bar a link to trigger page editing
+if (lc_get_apikey()) add_action('admin_bar_menu', 'lc_add_toolbar_items_dyn_templates', 100);
+function lc_add_toolbar_items_dyn_templates($admin_bar) {
+	//check if user has rights to edit,   and that  we are not in editing mode
+	if (!current_user_can("administrator") or isset($_GET['lc_action_launch_editing'])) return;
+	global $wp_admin_bar;
+
+	// ADD LINK: TO DYNAMIC TEMPLATE EDITING
+	global $lc_rendered_dynamic_template_id;
+	if(isset($lc_rendered_dynamic_template_id))   {
+        
+        if(!lc_plugin_option_is_set("whitelabel"))
+		$wp_admin_bar->add_node(array(
+			'id' => 'lc-dyntemplate-editing-father',
+			'title' => '<span id="icon-lc-launch-editing"></span>' . __(' ', 'livecanvas'),
+			'href' => '#'
+		));
+		else
+		$wp_admin_bar->add_node(array(
+			'id' => 'lc-dyntemplate-editing-father',
+			'title' => __('Dynamic Templating', 'livecanvas'),
+			 'href' => '#'
+		));
+
+        $wp_admin_bar->add_node(array(
+                'id' => 'lc-launch-dyntemplate-editing-child',
+                'parent' => 'lc-dyntemplate-editing-father',
+                'title' =>  __('Edit Dynamic '.ucwords(get_the_title($lc_rendered_dynamic_template_id)), 'livecanvas'),
+                'href' => esc_url( add_query_arg( array(
+                    'lc_action_launch_editing' => '1', 'from_url' => lc_urlencode(lc_get_current_url()),
+                    'from_page_edit' =>'1',
+                    'demo_id' => is_singular() ? get_the_ID() : null
+                ),
+                get_permalink($lc_rendered_dynamic_template_id))),
+            ));
+        //header
+        if(lc_plugin_option_is_set("header"))  $wp_admin_bar->add_node(array(
+                'id' => 'lc-launch-header-editing',
+                'parent' => 'lc-dyntemplate-editing-father',
+                'title' =>  __('Edit Header', 'livecanvas'),
+                'href' => add_query_arg(array(
+                    'lc_action_launch_editing' => '1', 'from_url' => lc_urlencode(lc_get_current_url())), get_permalink(    lc_get_partial_postid('is_header', "1")
+                ))
+            ));
+        //footer
+        if(lc_plugin_option_is_set("footerV2"))  $wp_admin_bar->add_node(array(
+                'id' => 'lc-launch-footer-editing',
+                'parent' => 'lc-dyntemplate-editing-father',
+                'title' =>  __('Edit Footer', 'livecanvas'),
+                'href' => add_query_arg(array(
+                    'lc_action_launch_editing' => '1', 'from_url' => lc_urlencode(lc_get_current_url())), get_permalink(    lc_get_partial_postid('is_footer', "1")
+                ))
+            ));
+    } // end if set lc_rendered_dynamic_template_id
+
+} //end func
+
+///ADD NEW ELEMENT TO WP-ADMIN LEFT MENU
+function lc_add_admin_menu_item() {
+	    if (current_user_can("administrator") OR !lc_plugin_option_is_set("simplified-client-ui")) add_pages_page(__('Add LiveCanvas Page'), __((!lc_plugin_option_is_set("whitelabel")? 'Add LiveCanvas Page':'Add Frontend Editor Page')), 'edit_pages', '#lc_click_action_new_page');
+}
+if (lc_get_apikey()) add_action('admin_menu', 'lc_add_admin_menu_item');
+
+//////////////////ADD JS TO MAKE THAT LINK ACTUALLY WORK /////////////
+function lc_add_admin_js() {
+	?>
+	<script>
+		document.addEventListener("DOMContentLoaded", function() {
+			var lc_link_el = document.querySelector("a[href='#lc_click_action_new_page']");
+			if(lc_link_el) lc_link_el.addEventListener("click", function(event){
+				event.preventDefault();
+				document.querySelector("#wp-admin-bar-lc-add-new-page a").click();
+			}); //end event click
+		});	//end DOMContentLoaded
+	</script>
+	<?php
+} //end func
+
+add_action('admin_head', 'lc_add_admin_js');
+
+
+//Add a post display state for Livecanvas posts and pages in the list table.
+add_filter(
+	'display_post_states',
+	function ( $post_states, $post ) {
+
+		if ( get_post_field( '_lc_livecanvas_enabled', $post ) == 1 ) {
+			$post_states['lc-content'] =  __(( (!lc_plugin_option_is_set("whitelabel")) ?  '[LC]': '[Frontend Editor]'), 'livecanvas');
+		}
+
+		return $post_states;
+	},
+	99,
+	2
+);
+
+
+/////// ICON IN TOOLBAR STYLING ///////////////////////////////////////////////////
+add_action('admin_head', 'lc_print_launch_icon_styles'); // on backend area
+add_action('wp_head', 'lc_print_launch_icon_styles'); // on frontend area
+function lc_print_launch_icon_styles() {
+	if (!is_user_logged_in())
+		return;
+?>
+	<style>
+		#icon-lc-launch-editing:after {
+			position: relative;    float: right;    content: ' ';    min-width: 86px;    height: 13px;    margin-right: 6px;
+			margin-top: 9px;    margin-left: 4px;    background-size: contain;    background-repeat: no-repeat;
+			background-image: url('<?php echo esc_url(plugin_dir_url( __FILE__ )) ?>images/lc-logo.svg');
+		}
+	</style>
+	<?php
+}
+
+
+/// HIDE WP ADMIN BAR WHILE EDITING WITH LC
+add_action('wp_loaded', 'lc_handle_actions');
+function lc_handle_actions() {
+	if (!current_user_can("edit_pages") or is_admin()) return;
+	global $wp_admin_bar;
+	if (isset($_GET['lc_action_launch_editing'])) add_filter('show_admin_bar', '__return_false');
+}
+
+
+
+// WHEN EDITING PARTIALS, BLOCKS, SECTION, HIDE HEADER AND FOOTER - Legacy, for Customstrap
+add_action("template_redirect",function(){
+	if ( current_user_can("edit_pages") && isset($_GET['lc_page_editing_mode']) && in_array(get_post_type(), array('lc_block', 'lc_section', 'lc_partial', 'lc_dynamic_template')) 	 ):
+		if ( !function_exists('customstrap_custom_header')){function customstrap_custom_header($variant=1){} function lc_custom_header($variant=1){} }
+		if ( !function_exists('customstrap_custom_footer')){function customstrap_custom_footer($variant=1){} function lc_custom_footer($variant=1){} }
+		?> <!-- <style>#wrapper-navbar {display: none} </style> --><?php //old hack - needed to be hooked to wp_head
+	endif;
+});
+
+// function to strip useless tags, should be used by critical when not editing
+function lc_strip_lc_attributes($html){
+	if ($_SERVER['SERVER_NAME'] ==  'library.livecanvas.com')  return $html;
+	$html = str_replace(' editable="inline"', "", $html);
+	$html = str_replace(' editable="rich"', "", $html);
+	$html = str_replace(' lc-helper="svg-icon"', "", $html);
+	//
+	$html = str_replace(' lc-helper="background"', " ", $html);
+	$html = str_replace(' lc-helper="video-bg"', " ", $html);
+	$html = str_replace(' lc-helper="gmap-embed"', " ", $html);
+	$html = str_replace(' lc-helper="video-embed"', " ", $html);
+	$html = str_replace(' lc-helper="shortcode"', " ", $html);
+	$html = str_replace(' lc-helper="image"', " ", $html);
+	$html = str_replace(' lc-helper="icon"', " ", $html);
+
+	return $html;
+}
+/* END of the BLOCK. Shorter than you have thought! Optionally, get also the header & footer stuff below.  */
+
+//GET HEADER HTML
+function lc_get_header($variant=1){
+	if (in_array(get_post_type(), array('lc_block', 'lc_section', 'lc_partial', 'lc_dynamic_template_NO')) ) return '';
+	$template_content = get_post_field( 'post_content', apply_filters('wpml_object_id', lc_get_partial_postid('is_header', $variant), 'lc_partial'), 'raw');
+	
+    $processed_content = lct_do_shortcode( 
+        lc_strip_lc_attributes( 
+            lc_process_custom_elements( $template_content )
+        )
+    );
+
+    // Apply filter to allow modification 
+    $processed_content = apply_filters('lc_modify_header_content', lc_neutralize_section_tags($processed_content), lc_get_partial_postid('is_header', $variant));
+
+    return  "\n\n\n<header id='lc-header'>" . $processed_content . "</header>\n\n\n";
+}
+
+//GET FOOTER HTML
+function lc_get_footer($variant=1){
+	if (in_array(get_post_type(), array('lc_block', 'lc_section', 'lc_partial', 'lc_dynamic_template_NO')) ) return '';
+    $template_content = get_post_field('post_content', apply_filters('wpml_object_id', lc_get_partial_postid('is_footer', $variant), 'lc_partial'), 'raw');
+	
+    $processed_content = lct_do_shortcode( 
+        lc_strip_lc_attributes( 
+            lc_process_custom_elements( $template_content )
+        )
+    );
+
+    // Apply filter to allow modification 
+    $processed_content = apply_filters('lc_modify_footer_content', lc_neutralize_section_tags($processed_content), lc_get_partial_postid('is_footer', $variant));
+    
+    return  "\n\n\n<footer id='lc-footer'>" .  $processed_content . "</footer>\n\n\n";
+}
+
+function lc_neutralize_section_tags($html){
+	$html = str_replace('<section', '<div', $html);
+	$html = str_replace('</section>', '</div>', $html);
+	return $html;
+}
+
+//DECLARE THE FUNCTION TO INTERFACE HEADER WITH CUSTOMSTRAP / OTHER THEMES
+if (lc_plugin_option_is_set("header") && !function_exists('customstrap_custom_header')):
+	function customstrap_custom_header($variant=1){echo lc_get_header($variant); }
+	function lc_custom_header($variant=1){echo lc_get_header($variant); }
+    add_filter( 'body_class', function( $classes ) {
+        return array_merge( $classes, array( 'lc-custom-header' ) );
+    } );
+
+endif;
+
+//DECLARE THE FUNCTION TO INTERFACE FOOTER WITH CUSTOMSTRAP / OTHER THEMES
+if (lc_plugin_option_is_set("footerV2") && !function_exists('customstrap_custom_footer')):
+	function customstrap_custom_footer($variant=1){echo lc_get_footer($variant); }
+	function lc_custom_footer($variant=1){echo lc_get_footer($variant); }
+    add_filter( 'body_class', function( $classes ) {
+        return array_merge( $classes, array( 'lc-custom-footer' ) );
+    } );
+endif;
+
+///ADD LC EDITING LINKS TO PAGE LISTING IN THE WP ADMIN////
+add_filter('page_row_actions', 'lc_add_action_links', 10, 2);
+add_filter('post_row_actions', 'lc_add_action_links', 10, 2);
+function lc_add_action_links($actions, $page_object) {
+	if ( lc_post_is_using_livecanvas($page_object->ID))	$actions['lc_edit_page'] = "<a class='lc_edit_page' href='" . esc_url(add_query_arg(array('lc_action_launch_editing' =>'1', 'from_url' => lc_urlencode(lc_get_current_url()), 'from_page_edit' => 1), get_permalink($page_object->ID))) . "'>" . __(( (!lc_plugin_option_is_set("whitelabel")) ?  'Edit with LiveCanvas': 'Edit in Frontend'), 'livecanvas') . "</a>";
+	if (current_user_can("edit_pages") && !function_exists('lc_hide_clone_page_links')) $actions['lc_clone_page'] = "<a class='lc_clone_page' href='" . esc_url( add_query_arg(array('lc_action_clone_page' => '1','lc_original_page_id' => $page_object->ID, 'from_page_edit' => 1	), get_admin_url()) ) . "'>" . __('Clone', 'livecanvas') . "</a>";
+	return $actions;
+}
+
+
+/////////
+
+//GET PARTIAL CPT ID: check if post exists; if not, create it. Useful for Header and Footer and dynamic templates
+function lc_get_partial_postid($field_name, $field_value=1) {
+
+	$my_posts = get_posts(array(
+        'post_type'=> 'lc_partial',
+        'orderby' => 'ID',
+        'order' => 'DESC',
+        'meta_key' => $field_name,
+        'meta_value' => $field_value,
+        'numberposts' => 1,
+        'post_status' => 'publish'
+    ));
+    
+	if( $my_posts ){
+		//there are results, return the first one
+		$partial_ID= $my_posts[0]->ID;
+	} else {
+		//no results: if the user is logged, let's create a new dummy
+		if (!is_user_logged_in() OR !is_admin()) return FALSE;
+		$partial_ID = wp_insert_post(array('post_type' => 'lc_partial','post_title' => ucwords(str_replace('_',' ',substr($field_name . (is_numeric($field_value)? '': ': '.$field_value ),3))   ), 'post_content' => lc_get_starter_content($field_name, $field_value), 'post_status' => 'publish'));
+		update_post_meta($partial_ID, $field_name, $field_value);
+	}
+	return $partial_ID;
+}
+
+
+//////////// AJAX FETCH OEMBED CODE /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+add_action('wp_ajax_lc_process_oembed', 'lc_process_oembed_func');
+function lc_process_oembed_func() {
+	if (!current_user_can("edit_pages")) return; //Only for editors	//OLD TAKE FOR CHECKING USERS
+    
+    //Check if user has rights via nonce   //NEW TAKE FOR CHECKING USERS
+    if ( !check_ajax_referer( 'lc_save_page','security' ) ) {
+        //unauthorized
+        echo "Error! Unautorized AJAX request";
+	    wp_die();
+    }
+        
+	$content = "[embed]" . $_POST['src_url'] . "[/embed]";
+	global $post;
+
+	//still useful? //trick to allow content filtering in ajax calls - to say, I love you
+	if (version_compare(PHP_VERSION, '8.0.0', '<')) $post->ID = PHP_INT_MAX;
+
+	remove_filter('the_content', 'wptexturize'); //remve #38
+	$embed_code = apply_filters('the_content', $content);
+
+	//get the url only
+	$embed_code_exploded = explode(' src="', $embed_code);
+	$embed_code_exploded = explode('"', $embed_code_exploded[1]);
+	echo $embed_code_exploded[0];
+	wp_die();
+}
+
+//////////// AJAX RENDER SHORTCODE  for .live-shortcode els /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+add_action('wp_ajax_lc_process_shortcode', 'lc_process_shortcode_func');
+function lc_process_shortcode_func() {
+    
+    //Check if user has rights via nonce   //NEW TAKE FOR CHECKING USERS
+    if ( !check_ajax_referer( 'lc_save_page','security' ) OR !current_user_can( 'edit_post', $_POST['post_id']) ) {
+        //unauthorized
+        echo "Error! Unautorized AJAX request";
+	    wp_die();
+    }
+
+	global $post;
+
+	if (isset($_POST['post_id']) && is_numeric($_POST['post_id'])) {
+		$post = get_post( $_POST['post_id']);
+	}
+
+	//$post->ID = PHP_INT_MAX; // no more useful trick to allow content filtering in ajax calls - to say, I love you
+
+	$input = stripslashes($_POST['shortcode']);
+	
+    $output = lc_process_custom_elements($input);
+    $output   = do_shortcode($output);
+
+
+
+	if ($input == $output) $output = '<div style="width:100%;padding:20px;background:#eee;color:#333;text-align:center"><h2>Unrecognized Shortcode</h2></div>';
+
+	echo $output;
+	wp_die();
+}
+
+
+//////////// AJAX RENDER DYNAMIC PARTIALS  **NEW** for .live-refresh els  /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+
+add_action('wp_ajax_lc_render_partial', 'wp_ajax_lc_render_partial_func');
+function wp_ajax_lc_render_partial_func() {
+    
+    //additional check if user has right to edit that page via nonce   //NEW TAKE FOR CHECKING USERS
+    if ( !check_ajax_referer( 'lc_save_page','security' ) OR !current_user_can( 'edit_post', $_POST['post_id']) ) {
+        //unauthorized
+        echo "Error! Unautorized AJAX request";
+	    wp_die();
+    }
+	
+	define("LC_DOING_DYNAMIC_TEMPLATE_SHORTCODE_RENDERING", 1);
+
+    //print_r($_POST);  //for debug
+
+    //check if current post type is allowed to run dynamic tags
+    $allowed_post_types =  array('page','lc_block','lc_section','lc_partial','lc_dynamic_template');
+    $allowed_post_types = apply_filters('lc_cpts_allowing_custom_tags', $allowed_post_types);
+    if (!in_array(get_post_type($_POST['post_id']), $allowed_post_types)) {
+        wp_die('
+            <div class="alert alert-primary" role="alert">
+                <h1>Important notice </h1>
+                <h2>On post types which are not pages, &lt;tangible&gt; tags are not processed by default.</h2>
+                <p>This is extendable to more post types using the <i>lc_cpts_allowing_custom_tags</i> filter.
+            </div>
+        ');
+    }
+
+	$input =  stripslashes($_POST['html']);
+    
+	//determine context post id
+	if (isset($_POST['post_id']) && is_numeric($_POST['post_id'])){
+		$context_post_id = $_POST['post_id'];
+	}
+
+	//for dynamic templating
+	if (isset($_POST['demo_id']) && is_numeric($_POST['demo_id'])){
+		$context_post_id = $_POST['demo_id'];
+	}
+	
+	//simulate context
+    if ($context_post_id) {
+		$teardown = lc_bootstrap_post_context( $context_post_id);
+	}
+
+    $processed_content = lct_do_shortcode( 
+        lc_strip_lc_attributes( 
+            lc_process_custom_elements( $input )
+        )
+    );
+
+	$teardown();
+
+	//only for empty output check, define a quick way to define if output will render
+	//into something visible
+	$allowed = [
+		'img','video','audio','iframe','canvas','object','embed','svg','picture',
+		'input','select','textarea','button',
+		'br','hr',
+		'progress','meter','details','summary',
+		];
+
+		$allowedStr = '<' . implode('><', $allowed) . '>';
+
+	if (trim(strip_tags($processed_content, $allowed)) == '') {
+		
+		$processed_content = '
+			<div class="alert alert-warning text-center" DISABLElc-helper="test">
+				<h3 class="h4"> Empty value returned </h3> 
+				<p class="mb-0">Edit HTML Code to Adjust Parameters</p>
+			</div>
+		';
+	}
+    
+	wp_die( $processed_content );
+    
+} 
+ 
+//HELPER FUNC
+
+/**
+ * Bootstrap a full WordPress "main query" context for a specific post (AJAX-safe).
+ * Returns a teardown closure you MUST call after rendering to restore globals.
+ *
+ * Why: In AJAX there is no main query, so many functions (and plugins like Tangible)
+ * can't see the "current post". This function simulates a real singular request.
+ */
+function lc_bootstrap_post_context( $post_id ) {
+    $post_id = (int) $post_id;
+    if ( $post_id <= 0 ) {
+        // No-op teardown when post_id is invalid
+        return static function(){};
+    }
+
+    // Snapshot critical WP globals
+    global $wp_query, $wp_the_query, $post, $id, $authordata;
+
+    $prev_wp_query     = isset($wp_query)     ? $wp_query     : null;
+    $prev_wp_the_query = isset($wp_the_query) ? $wp_the_query : null;
+    $prev_post         = isset($post)         ? $post         : null;
+    $prev_id           = isset($id)           ? $id           : null;
+    $prev_authordata   = isset($authordata)   ? $authordata   : null;
+
+    // Fetch the target post
+    $target = get_post( $post_id );
+    if ( ! $target ) {
+        // If post doesn't exist, just restore on teardown
+        return static function() use ($prev_wp_query, $prev_wp_the_query, $prev_post, $prev_id, $prev_authordata) {
+            global $wp_query, $wp_the_query, $post, $id, $authordata;
+            $wp_query     = $prev_wp_query;
+            $wp_the_query = $prev_wp_the_query;
+            $post         = $prev_post;
+            $id           = $prev_id;
+            $authordata   = $prev_authordata;
+        };
+    }
+
+    $ptype = $target->post_type ?: 'any';
+
+    // Build a real WP_Query pointing to that post
+    $q = new WP_Query( [
+        'p'                 => $post_id,
+        'post_type'         => $ptype,
+        'post_status'       => get_post_status( $post_id ),
+        'posts_per_page'    => 1,
+        'no_found_rows'     => true,
+        'ignore_sticky_posts' => true,
+    ] );
+
+    // Make it the main query
+    $wp_query     = $q;
+    $wp_the_query = $q;
+
+    // Ensure conditionals reflect a singular request
+    $q->is_home       = false;
+    $q->is_front_page = false;
+    $q->is_archive    = false;
+    $q->is_category   = false;
+    $q->is_tag        = false;
+    $q->is_tax        = false;
+    $q->is_search     = false;
+    $q->is_404        = false;
+    $q->is_singular   = true;
+    $q->is_page       = ($ptype === 'page');
+    $q->is_single     = ($ptype !== 'page');
+
+    // Advance the loop and populate $post
+    if ( $q->have_posts() ) {
+        $q->the_post(); // sets $post, queried_object, etc.
+    } else {
+        // Manual fallback if something blocked the loop
+        $post = $target;
+        setup_postdata( $post );
+        $q->queried_object    = $target;
+        $q->queried_object_id = $post_id;
+    }
+
+    // Legacy globals some code still uses
+    $id         = $post->ID;
+    $authordata = get_userdata( $post->post_author );
+
+    // Teardown to restore previous globals
+    return static function() use ($prev_wp_query, $prev_wp_the_query, $prev_post, $prev_id, $prev_authordata) {
+        wp_reset_postdata();
+        global $wp_query, $wp_the_query, $post, $id, $authordata;
+        $wp_query     = $prev_wp_query;
+        $wp_the_query = $prev_wp_the_query;
+        $post         = $prev_post;
+        $id           = $prev_id;
+        $authordata   = $prev_authordata;
+    };
+}
+
+
+///////// AJAX GET IMAGE SRCSET AJAX ACTION, gets the full img tag /////////////////
+add_action('wp_ajax_lc_get_img_tag', 'lc_ajax_get_img_tag_func');
+
+function lc_ajax_get_img_tag_func() {
+	$id = $_POST['post_id'];
+	$format = $_POST['format'] ?? 'full';
+	if (!$id) {
+		wp_die();
+	}
+
+	$img = wp_get_attachment_image_src($id, $format);
+	if (!$img) {
+		wp_die();
+	}
+
+	list( $src, $width, $height ) = $img;
+	$metas = wp_get_attachment_metadata($id);
+	$metasHeight = $metas['sizes'][$format]['height'] ?? $height;
+	$metasWidth = $metas['sizes'][$format]['width'] ?? $width;
+	$srcset = wp_calculate_image_srcset([$width, $height], $src, $metas, $id);
+	$sizes = $srcset ? wp_calculate_image_sizes($format, $src, $metas, $id) : false;
+	$alt = get_post_meta($id, '_wp_attachment_image_alt', TRUE);
+
+	$filetype = wp_check_filetype($metas['file']);
+	$ext = $filetype['ext'];
+
+	/**
+	 * remove width and height if extension isn't readable
+	 */
+	switch($ext) {
+		case 'svg':
+			$metasWidth = $metasWidth = $width = $height = null;
+		 break;
+		case false:
+			$metasHeight = $metasWidth = $width = $height = null;
+		 break;
+	}
+
+	$result = array_filter([
+		'src' => $src,
+		'width' => $metasWidth,
+		'height' => $metasHeight,
+		'sizes' => $sizes,
+		'srcset' => $srcset,
+		'alt' => $alt,
+	]);
+
+	echo json_encode($result);
+
+	wp_die();
+}
+
+add_action('wp_ajax_lc_ajax_unsplash_srcset', 'lc_ajax_unsplash_srcset');
+
+function lc_ajax_unsplash_srcset() {
+
+	$str = $_POST['image_url'];
+	$query = parse_url($str, PHP_URL_QUERY);
+	$url = str_replace($query, '', $str); //url without parameters
+	parse_str($query, $parse);
+
+	$wpDefinedSizes = get_intermediate_image_sizes();
+	$wpAdditionalSizes = wp_get_additional_image_sizes();
+	$res = [$str . ' ' . $parse['w'] . 'w'];
+	$widths = [$parse['w']];
+
+	foreach($wpDefinedSizes as $v) {
+		if (array_key_exists($v, $wpAdditionalSizes)) {
+			continue; //skip custom formats - this row could be commented
+		}
+		//check format size setting
+		$w = $wpAdditionalSizes[$v]['width'] ?? get_option($v . '_size_w');
+		$h = $wpAdditionalSizes[$v]['width'] ?? get_option($v . '_size_h');
+
+		$scheme = $parse;
+		$scheme['w'] = $w;
+		unset($scheme['h']); //non abbiamo bisogno dell'h per mantenere l'aspect ratio
+
+		$res[] = $url . '?' . http_build_query($scheme) . ' ' . $w . 'w';
+		$widths[] = $w;
+	}
+
+	$max = max($widths);
+	$sizes = count($res) ? '(max-width: ' . $max . 'px) 100vw, ' . $max . 'px' : null;
+	$results = array_filter([
+		'srcset' => implode(', ', $res),
+		'sizes' => $sizes,
+		'width' => $parse['w'],
+		'height' => $parse['h'],
+	]);
+
+	echo json_encode($results);
+	wp_die();
+}
+
+///////////////////// CUSTOM BLOCKS & SECTION CUSTOM POST TYPE REGISTRATION ////////////////////////////////////////////////////////////////////////
+
+function lc_cpts() {
+
+	$labels = array(
+		'name' => _x('Blocks', 'Post Type General Name', 'livecanvas'),
+		'singular_name' => _x('Block', 'Post Type Singular Name', 'livecanvas'),
+		'menu_name' => __('Custom Blocks', 'livecanvas'),
+		'name_admin_bar' => __('Block', 'livecanvas'),
+		'archives' => __('Item Archives', 'livecanvas'),
+		'attributes' => __('Item Attributes', 'livecanvas'),
+		'parent_item_colon' => __('Parent Item:', 'livecanvas'),
+		'all_items' => __('All Items', 'livecanvas'),
+		'add_new_item' => __('Add New Item', 'livecanvas'),
+		'add_new' => __('Add New', 'livecanvas'),
+		'new_item' => __('New Item', 'livecanvas'),
+		'edit_item' => __('Edit Item', 'livecanvas'),
+		'update_item' => __('Update Item', 'livecanvas'),
+		'view_item' => __('View Item', 'livecanvas'),
+		'view_items' => __('View Items', 'livecanvas'),
+		'search_items' => __('Search Item', 'livecanvas'),
+		'not_found' => __('Not found', 'livecanvas'),
+		'not_found_in_trash' => __('Not found in Trash', 'livecanvas'),
+		'featured_image' => __('Featured Image', 'livecanvas'),
+		'set_featured_image' => __('Set featured image', 'livecanvas'),
+		'remove_featured_image' => __('Remove featured image', 'livecanvas'),
+		'use_featured_image' => __('Use as featured image', 'livecanvas'),
+		'insert_into_item' => __('Insert into item', 'livecanvas'),
+		'uploaded_to_this_item' => __('Uploaded to this item', 'livecanvas'),
+		'items_list' => __('Items list', 'livecanvas'),
+		'items_list_navigation' => __('Items list navigation', 'livecanvas'),
+		'filter_items_list' => __('Filter items list', 'livecanvas')
+	);
+	$args   = array(
+		'label' => __('Block', 'livecanvas'),
+		'description' => __('Your own HTML snippets intended  as small, atomic "starters" you can use as blueprints and  re-edit in the LiveCanvas editor.
+		<br>You can save a new Block directly from within the LiveCanvas editor interface, using "Save to Library..." in the Block contextual menu.', 'livecanvas'),
+		'labels' => $labels,
+		'supports' => array('title', 'editor', 'revisions'),
+		'hierarchical' => false,
+		'public' => false,
+		'show_ui' => true,
+		'show_in_menu' => false,
+		'menu_position' => 100,
+		'menu_icon' => 'dashicons-welcome-write-blog',
+		'show_in_admin_bar' => 0,
+		'show_in_nav_menus' => false,
+		'can_export' => true,
+		'has_archive' => false,
+		'exclude_from_search' => true,
+		'publicly_queryable' => (current_user_can('administrator')),
+		'rewrite' => false,
+		'capability_type' => 'page',
+		'show_in_rest' => false
+	);
+	register_post_type('lc_block', $args);
+
+
+
+	$labels = array(
+		'name' => _x('Sections', 'Post Type General Name', 'livecanvas'),
+		'singular_name' => _x('Section', 'Post Type Singular Name', 'livecanvas'),
+		'menu_name' => __('Custom Sections', 'livecanvas'),
+		'name_admin_bar' => __('Section', 'livecanvas'),
+		'archives' => __('Item Archives', 'livecanvas'),
+		'attributes' => __('Item Attributes', 'livecanvas'),
+		'parent_item_colon' => __('Parent Item:', 'livecanvas'),
+		'all_items' => __('All Items', 'livecanvas'),
+		'add_new_item' => __('Add New Item', 'livecanvas'),
+		'add_new' => __('Add New', 'livecanvas'),
+		'new_item' => __('New Item', 'livecanvas'),
+		'edit_item' => __('Edit Item', 'livecanvas'),
+		'update_item' => __('Update Item', 'livecanvas'),
+		'view_item' => __('View Item', 'livecanvas'),
+		'view_items' => __('View Items', 'livecanvas'),
+		'search_items' => __('Search Item', 'livecanvas'),
+		'not_found' => __('Not found', 'livecanvas'),
+		'not_found_in_trash' => __('Not found in Trash', 'livecanvas'),
+		'featured_image' => __('Featured Image', 'livecanvas'),
+		'set_featured_image' => __('Set featured image', 'livecanvas'),
+		'remove_featured_image' => __('Remove featured image', 'livecanvas'),
+		'use_featured_image' => __('Use as featured image', 'livecanvas'),
+		'insert_into_item' => __('Insert into item', 'livecanvas'),
+		'uploaded_to_this_item' => __('Uploaded to this item', 'livecanvas'),
+		'items_list' => __('Items list', 'livecanvas'),
+		'items_list_navigation' => __('Items list navigation', 'livecanvas'),
+		'filter_items_list' => __('Filter items list', 'livecanvas')
+	);
+	$args   = array(
+		'label' => __('Section', 'livecanvas'),
+		'description' => __('Your own HTML snippets intended as larger "starters" you can use as blueprints and re-edit in the LiveCanvas editor. You can organize them in <a href="'.
+        admin_url('edit-tags.php?taxonomy=lc_section_type&post_type=lc_section').'">Section Types.</a>
+		<br>You can save a new Section directly from within the LiveCanvas editor interface, using "Save to Library..." in the Section contextual menu.', 'livecanvas'),
+		'labels' => $labels,
+		'supports' => array('title','editor','revisions','page_attributes' ),
+		'hierarchical' => false,
+		'public' => false,
+		'show_ui' => true,
+		'show_in_menu' => false,
+		'menu_position' => 100,
+		'menu_icon' => 'dashicons-welcome-write-blog',
+		'show_in_admin_bar' => 0,
+		'show_in_nav_menus' => false,
+		'can_export' => true,
+		'has_archive' => false,
+		'exclude_from_search' => true,
+		'publicly_queryable' => (current_user_can('administrator')),
+		'rewrite' => false,
+		'capability_type' => 'page',
+		'show_in_rest' => false
+	);
+	register_post_type('lc_section', $args);
+
+
+
+    register_post_type( 'lc_gt_block',
+        array(
+            'labels' => array(
+                'name' => __( 'Gutenberg Blocks' ),
+                'singular_name' => __( 'Gutenberg Block' ),
+				'add_new_item' => __('Add New Gutenberg Block', 'livecanvas'),
+				'edit_item' => __('Edit Gutenberg Block', 'livecanvas'),
+            ),
+			'description' => __('Gutenberg Blocks are elements you can craft with the Gutenberg editor and recall throughout the site via Shortcodes.', 'livecanvas'),
+            'has_archive' => false,
+			'hierarchical' => false,
+            'public' => false,
+			'show_ui' => true,
+            'show_in_rest' => true,
+            'supports' => array('title','editor','revisions'),
+			'show_in_menu' => false,
+			'menu_position' => 100,
+			'menu_icon' => 'dashicons-welcome-write-blog',
+			'show_in_admin_bar' => 0,
+			'show_in_nav_menus' => false,
+			'can_export' => true,
+			'has_archive' => false,
+			'exclude_from_search' => true,
+			'publicly_queryable' => (current_user_can('administrator')),
+			'rewrite' => false,
+			'capability_type' => 'post',
+
+        )
+    );
+
+
+    register_post_type( 'lc_partial',
+        array(
+            'labels' => array(
+                'name' => __( 'Partials' ),
+                'singular_name' => __( 'Partial' ),
+                'add_new' => __('Add New', 'livecanvas'),
+				'add_new_item' => __('Add New Partial', 'livecanvas'),
+				'edit_item' => __('Edit Partial', 'livecanvas'),
+            ),
+			'description' => __('Partials are HTML chunks you can recall to display multiple times the very same element. Formerly "Template Partials".
+			<br>Differently from what happens with Sections and Blocks, Template Partials cannot be consumed as HTML to re-edit in the LiveCanvas editor in your design, they can be just recalled as a whole using shortcodes.', 'livecanvas'),
+            'has_archive' => false,
+			'hierarchical' => false,
+            'public' => false,
+			'show_ui' => true,
+            'show_in_rest' => false,
+            'supports' => array('title', 'editor', 'revisions', 'page-attributes', 'custom-fields' ),
+			'show_in_menu' => false,
+			'menu_position' => 100,
+			'menu_icon' => 'dashicons-welcome-write-blog',
+			'show_in_admin_bar' => 0,
+			'show_in_nav_menus' => false,
+			'can_export' => true,
+			'has_archive' => false,
+			'exclude_from_search' => true,
+			'publicly_queryable' => (current_user_can('administrator')),
+			'rewrite' => false,
+			'capability_type' => 'page',
+        )
+    );
+
+	register_post_type( 'lc_dynamic_template',
+        array(
+            'labels' => array(
+                'name' => __( 'Dynamic Templates' ),
+                'singular_name' => __( 'Dynamic Template' ),
+                'add_new' => __('Add New', 'livecanvas'),
+				'add_new_item' => __('Add New Dynamic Template', 'livecanvas'),
+				'edit_item' => __('Edit Dynamic Template', 'livecanvas'),
+            ),
+			'description' => __('Dynamic Templates are useful for handling the WordPress single templates, category archives, 404s, WooCommerce products, etc...<br>Learn more about <a target="_blank" href="https://docs.livecanvas.com/dynamic-templating/">dynamic templating</a> and <a target="_blank" href="https://docs.livecanvas.com/woocommerce/">WooCommerce templating</a>.', 'livecanvas'),
+            'has_archive' => false,
+			'hierarchical' => false,
+            'public' => false,
+			'show_ui' => true,
+            'show_in_rest' => false,
+            'supports' => array('title', 'editor', 'revisions', 'page-attributes', /* 'custom-fields' */ ), //useful for more flexibility
+			'show_in_menu' => false,
+			'menu_position' => 100,
+			'menu_icon' => 'dashicons-welcome-write-blog',
+			'show_in_admin_bar' => 0,
+			'show_in_nav_menus' => true,
+			'can_export' => true,
+			'has_archive' => false,
+			'exclude_from_search' => true,
+			'publicly_queryable' => (!is_admin() && current_user_can('administrator')),
+			'rewrite' => false,
+			'capability_type' => 'page',
+        )
+    );
+
+}
+add_action('init', 'lc_cpts', 0);
+
+///FORCE the CUSTOM FIELDS BOX TO APPEAR ON LC PARTIALS, ALSO IF THE ACF PLUGIN IS ENABLED
+// (ACF tends to hide metaboxes)
+
+if (is_admin()) {
+    add_filter('acf/settings/remove_wp_meta_box', function ($show) {
+        if (!function_exists('get_current_screen')) return $show;
+
+        $screen = get_current_screen();
+        if ($screen && 'lc_partial' === $screen->post_type) {
+            return false;
+        }
+
+        return $show;
+    }, 10, 1);
+}
+
+//ADD THE "lc_section_type" CUSTOM TAXONOMY
+add_action('init', 'lc_register_custom_taxonomy_sections');
+function lc_register_custom_taxonomy_sections() {
+    $labels = array(
+        'name'                       => _x('Section Types', 'taxonomy general name', 'livecanvas'),
+        'singular_name'              => _x('Section Type', 'taxonomy singular name', 'livecanvas'),
+        'search_items'               => __('Search Section Types', 'livecanvas'),
+        'popular_items'              => __('Popular Section Types', 'livecanvas'),
+        'all_items'                  => __('All Section Types', 'livecanvas'),
+        'parent_item'                => __('Parent Section Type', 'livecanvas'),
+        'parent_item_colon'          => __('Parent Section Type:', 'livecanvas'),
+        'edit_item'                  => __('Edit Section Type', 'livecanvas'),
+        'view_item'                  => __('View Section Type', 'livecanvas'),
+        'update_item'                => __('Update Section Type', 'livecanvas'),
+        'add_new_item'               => __('Add New Section Type', 'livecanvas'),
+        'new_item_name'              => __('New Section Type Name', 'livecanvas'),
+        'not_found'                  => __('No Section Types found', 'livecanvas'),
+        'no_terms'                   => __('No Section Types', 'livecanvas'),
+        'items_list_navigation'      => __('Section Types list navigation', 'livecanvas'),
+        'items_list'                 => __('Section Types list', 'livecanvas'),
+    );
+
+    $args = array(
+        'labels' => $labels,
+        'public' => false, // Keep taxonomy non-public
+        'show_ui' => true, // Enable UI for management
+        'show_in_menu' => false, // Do not add it automatically to the admin menu
+        'show_in_nav_menus' => false, // Do not show in navigation menus
+        'show_in_rest' => false, // No REST API support
+        'show_tagcloud' => false, // Hide from tag clouds
+        'hierarchical' => true, // Hierarchical like categories
+        'rewrite' => false, // No custom URL rewrite rules
+        'query_var' => true, // Enable queries by this taxonomy
+    );
+
+    // Associate the taxonomy with the custom post type
+    register_taxonomy('lc_section_type', array('lc_section'), $args);
+}
+//ADD THE "lc_block_type" CUSTOM TAXONOMY
+add_action('init', 'lc_register_custom_taxonomy_blocks');
+function lc_register_custom_taxonomy_blocks() {
+    $labels = array(
+        'name'                       => _x('Block Types', 'taxonomy general name', 'livecanvas'),
+        'singular_name'              => _x('Block Type', 'taxonomy singular name', 'livecanvas'),
+        'search_items'               => __('Search Block Types', 'livecanvas'),
+        'popular_items'              => __('Popular Block Types', 'livecanvas'),
+        'all_items'                  => __('All Block Types', 'livecanvas'),
+        'parent_item'                => __('Parent Block Type', 'livecanvas'),
+        'parent_item_colon'          => __('Parent Block Type:', 'livecanvas'),
+        'edit_item'                  => __('Edit Block Type', 'livecanvas'),
+        'view_item'                  => __('View Block Type', 'livecanvas'),
+        'update_item'                => __('Update Block Type', 'livecanvas'),
+        'add_new_item'               => __('Add New Block Type', 'livecanvas'),
+        'new_item_name'              => __('New Block Type Name', 'livecanvas'),
+        'not_found'                  => __('No Block Types found', 'livecanvas'),
+        'no_terms'                   => __('No Block Types', 'livecanvas'),
+        'items_list_navigation'      => __('Block Types list navigation', 'livecanvas'),
+        'items_list'                 => __('Block Types list', 'livecanvas'),
+    );
+
+    $args = array(
+        'labels' => $labels,
+        'public' => false, // Keep taxonomy non-public
+        'show_ui' => true, // Enable UI for management
+        'show_in_menu' => false, // Do not add it automatically to the admin menu
+        'show_in_nav_menus' => false, // Do not show in navigation menus
+        'show_in_rest' => false, // No REST API support
+        'show_tagcloud' => false, // Hide from tag clouds
+        'hierarchical' => true, // Hierarchical like categories
+        'rewrite' => false, // No custom URL rewrite rules
+        'query_var' => true, // Enable queries by this taxonomy
+    );
+
+    // Associate the taxonomy with the custom post type
+    register_taxonomy('lc_block_type', array('lc_block'), $args);
+}
+//ADD THE "lc_partial_type" CUSTOM TAXONOMY
+add_action('init', 'lc_register_custom_taxonomy_partials');
+function lc_register_custom_taxonomy_partials() {
+    $labels = array(
+        'name'                       => _x('Partial Types', 'taxonomy general name', 'livecanvas'),
+        'singular_name'              => _x('Partial Type', 'taxonomy singular name', 'livecanvas'),
+        'search_items'               => __('Search Partial Types', 'livecanvas'),
+        'popular_items'              => __('Popular Partial Types', 'livecanvas'),
+        'all_items'                  => __('All Partial Types', 'livecanvas'),
+        'parent_item'                => __('Parent Partial Type', 'livecanvas'),
+        'parent_item_colon'          => __('Parent Partial Type:', 'livecanvas'),
+        'edit_item'                  => __('Edit Partial Type', 'livecanvas'),
+        'view_item'                  => __('View Partial Type', 'livecanvas'),
+        'update_item'                => __('Update Partial Type', 'livecanvas'),
+        'add_new_item'               => __('Add New Partial Type', 'livecanvas'),
+        'new_item_name'              => __('New Partial Type Name', 'livecanvas'),
+        'not_found'                  => __('No Partial Types found', 'livecanvas'),
+        'no_terms'                   => __('No Partial Types', 'livecanvas'),
+        'items_list_navigation'      => __('Partial Types list navigation', 'livecanvas'),
+        'items_list'                 => __('Partial Types list', 'livecanvas'),
+    );
+
+    $args = array(
+        'labels' => $labels,
+        'public' => false, // Keep taxonomy non-public
+        'show_ui' => true, // Enable UI for management
+        'show_in_menu' => false, // Do not add it automatically to the admin menu
+        'show_in_nav_menus' => false, // Do not show in navigation menus
+        'show_in_rest' => false, // No REST API support
+        'show_tagcloud' => false, // Hide from tag clouds
+        'hierarchical' => true, // Hierarchical like categories
+        'rewrite' => false, // No custom URL rewrite rules
+        'query_var' => true, // Enable queries by this taxonomy
+    );
+
+    // Associate the taxonomy with the custom post type
+    register_taxonomy('lc_partial_type', array('lc_partial'), $args);
+}
+
+// ADD FILTERING WIDGETS TO WP ADMIN to filter posts by lc_section_type
+add_action('restrict_manage_posts', 'lc_add_lctype_taxonomy_filter_to_admin');
+function lc_add_lctype_taxonomy_filter_to_admin() {
+    global $typenow;
+
+    // Check if the current post type is one of your custom post types
+    if (in_array($typenow, array('lc_section'))) {
+        $selected      = isset($_GET['lc_section_type']) ? $_GET['lc_section_type'] : '';
+        $info_taxonomy = get_taxonomy('lc_section_type');
+
+        wp_dropdown_categories(array(
+            'show_option_all' => __("Show All {$info_taxonomy->label}"),
+            'taxonomy'        => 'lc_section_type',
+            'name'            => 'lc_section_type',
+            'orderby'         => 'name',
+            'selected'        => $selected,
+            'show_count'      => true, // Set to true if you want to display the number of posts next to the term name
+            'hide_empty'      => false, // Set to true if you want to hide terms with no posts
+            'value_field'     => 'slug', // This will use term slug for option values
+        ));
+    }
+}
+
+// Modify the query based on the selected taxonomy term
+add_filter('parse_query', 'lc_filter_admin_posts_by_taxonomy');
+function lc_filter_admin_posts_by_taxonomy($query) {
+    global $pagenow;
+    if ($pagenow == 'edit.php' && isset($_GET['lc_section_type']) && !empty($_GET['lc_section_type']) && in_array($query->query_vars['post_type'], array('lc_section'))) {
+        $term = get_term_by('slug', $_GET['lc_section_type'], 'lc_section_type');
+        $query->query_vars['tax_query'] = array(
+            array(
+                'taxonomy' => 'lc_section_type',
+                'field' => 'id',
+                'terms' => $term->term_id,
+            ),
+        );
+    }
+}
+
+//ADD COLUMNS TO WP ADMIN
+// Add the new column to the post type list table, before the 'Date' column
+function lc_add_lctype_taxonomy_columns($columns) {
+    $new_columns = [];
+    foreach ($columns as $key => $title) {
+        // Insert before the 'Date' column
+        if ($key == 'date') {
+            $new_columns['lc_section_type'] = __('Section Type', 'livecanvas'); // Adjust the label as needed
+        }
+        $new_columns[$key] = $title;
+    }
+    return $new_columns;
+}
+
+// Populate the new column with the taxonomy terms for each post
+function lc_fill_lctype_taxonomy_column($column, $post_id) {
+    if ($column == 'lc_section_type') {
+        $terms = get_the_terms($post_id, 'lc_section_type');
+        if (!empty($terms)) {
+            $out = array();
+            foreach ($terms as $term) {
+                $out[] = sprintf('<a href="%s">%s</a>',
+                    esc_url(add_query_arg(array('post_type' => get_post_type($post_id), 'lc_section_type' => $term->slug), 'edit.php')),
+                    esc_html(sanitize_term_field('name', $term->name, $term->term_id, 'lc_section_type', 'display'))
+                );
+            }
+            echo join(', ', $out);
+        } else {
+            echo __('None', 'livecanvas'); // Show 'None' if no terms are associated with the post
+        }
+    }
+}
+
+// Hook into the actions and filters for each of your custom post types
+foreach (array('lc_section') as $post_type) {
+    add_filter("manage_edit-{$post_type}_columns", 'lc_add_lctype_taxonomy_columns');
+    add_action("manage_{$post_type}_posts_custom_column", 'lc_fill_lctype_taxonomy_column', 10, 2);
+}
+
+//BACKEND UI: PRINT CPT DESCRIPTIONS
+add_filter("views_edit-lc_block", 'lc_show_post_type_description');
+add_filter("views_edit-lc_section", 'lc_show_post_type_description');
+
+add_filter("views_edit-lc_gt_block", 'lc_show_post_type_description');
+add_filter("views_edit-lc_partial", 'lc_show_post_type_description');
+add_filter("views_edit-lc_dynamic_template", 'lc_show_post_type_description');
+
+function  lc_show_post_type_description( $views ){
+    $screen = get_current_screen();
+    $post_type = get_post_type_object($screen->post_type);
+    if ($post_type->description) {
+      printf('<p style="font-size: 18px;">%s</p>',  ($post_type->description)); // echo
+    }
+    return $views; // return original input unchanged
+}
+
+
+// BACKEND UI: KEEP WP SIDE MENU ITEM OPEN ON SINGLE POST EDIT SCREEN OF LC CPTS
+add_action('admin_head', function () {
+	global $pagenow;
+	if (!in_array( $pagenow, array( 'post.php', 'post-new.php' ) )) return; //exit if not in post edit or post new screen
+	$current_screen = get_current_screen();
+	// Post types for which the media buttons should be removed.
+	$post_types = array('lc_block',	'lc_section', 'lc_partial', 'lc_dynamic_template' );
+	// Bail out if media buttons should not be removed for the current post type.
+	if (!$current_screen || !in_array($current_screen->post_type, $post_types, true)) return;
+	?>
+	<script>
+		document.addEventListener("DOMContentLoaded", function() {
+			document.querySelector("#toplevel_page_livecanvas").classList.remove("wp-not-current-submenu");
+			document.querySelector("#toplevel_page_livecanvas").classList.add("wp-has-current-submenu");
+		});
+	</script>
+	<?php
+}); //end func
+
+
+//FORCE TEMPLATE FOR CPTs BLOCK & SECTION & PARTIALS
+add_filter( 'template_include', 'lc_force_template' );
+function lc_force_template($template){
+
+	if ( (in_array(get_post_type(), array("lc_block", "lc_section", "lc_partial", "lc_dynamic_template")))) {
+		$template = get_stylesheet_directory().'/page-templates/empty.php'; //of current theme
+		if (!file_exists($template)) $template = get_template_directory().'/page-templates/empty.php';//if not found, fallback to parent
+		if (!file_exists($template)) $template = dirname( __FILE__ ) . '/modules/templates/single-lc-template.php'; //fallback to built-in
+    }
+    // Always return, even if we didn't change anything
+    return $template;
+}
+
+//DISABLE WYSIWYG EDITING ON LC-POWERED POSTS LEAVING SIMPLE A CODE EDITOR SO YOAST CAN PICK IT
+add_filter('user_can_richedit', 'lc_page_can_richedit');
+function lc_page_can_richedit($can) {
+	if (!is_admin()) return $can; //don't mess around the frontend
+	global $post,$lc_ww_count;
+	$lc_ww_count++;//let's count how many editors are printed
+
+	//echo "VVV".$lc_ww_count;// for debug
+
+	if($lc_ww_count > 2 && lc_plugin_option_is_set("allow_multiple_editors"))   return $can; //this is done so that additional WW editors are not deleted
+	if ( empty($post)) return $can;
+	if ( isset($post->ID) && is_numeric ($post->ID) && lc_post_is_using_livecanvas($post->ID)  ) 	return false;
+
+	return $can;
+}
+
+// DISABLE GUTENBERG IN LC PAGES
+add_filter('use_block_editor_for_post_type', 'lc_use_block_editor_for_post_type' , 10);
+function lc_use_block_editor_for_post_type($in) {
+	if (!is_admin()) return $in;
+	if ( isset($_GET['post']) && is_numeric($_GET['post']) &&   lc_post_is_using_livecanvas($_GET['post'])  )	return false;
+	return $in;
+}
+
+// REMOVES MEDIA BUTTONS FROM POST TYPES
+add_filter('wp_editor_settings', function($settings) {
+	if (!is_admin()) return $settings;
+	$current_screen = get_current_screen();
+	// Post types for which the media buttons should be removed.
+	$post_types = array('lc_block',	'lc_section', 'lc_partial', 'lc_dynamic_template' );
+	// Bail out if media buttons should not be removed for the current post type.
+	if (!$current_screen || !in_array($current_screen->post_type, $post_types, true)) {	return $settings; }
+	$settings['media_buttons'] = false;
+	return $settings;
+});
+
+
+// CODEMIRROR FOR CPTs
+add_action('admin_enqueue_scripts', function() {
+	if (!in_array( get_current_screen()->id, array('lc_block', 'lc_section', 'lc_partial', 'lc_dynamic_template'))) return;
+	// Enqueue code editor and settings for manipulating HTML.
+	$settings = wp_enqueue_code_editor(array(	'type' => 'text/html'	));
+	// Bail if user disabled CodeMirror.
+	if (false === $settings) {	return;	}
+	wp_add_inline_script('code-editor', sprintf('jQuery( function() {
+				var lc_editor=wp.codeEditor.initialize( "content", %s );
+				window.lc_editor = lc_editor;
+				lc_editor.codemirror.setSize(null, 700);
+			} );', wp_json_encode($settings)));
+}); //end add action
+
+
+//GET ACTIVE PLUGINS LIST
+function lc_get_active_plugins_list() {
+	$the_list  = "";
+	$the_plugs = get_option('active_plugins');
+
+	if ($the_plugs)
+		foreach ($the_plugs as $key => $value) {
+			$string = explode('/', $value); // Folder name will be displayed
+			$the_list .= $string[0] . ',';
+		}
+
+	$the_network_plugs = get_site_option('active_sitewide_plugins');
+
+	if ($the_network_plugs)
+		foreach ($the_network_plugs as $key => $value) {
+			$string = explode('/', $key); // Folder name will be displayed
+			$the_list .= $string[0] . ',';
+		}
+	return $the_list;
+}
+
+///////////// HOOK THE CUSTOM INLINE CSS FOR EDITING WITH LC so it's never empty ////////
+add_filter("wp_get_custom_css", 'lc_alter_custom_css',100);
+function lc_alter_custom_css($css) {
+	if (current_user_can("edit_pages") && isset($_GET['lc_page_editing_mode']))		$lc_editing_mode = TRUE;	else		$lc_editing_mode = FALSE;
+	if ($lc_editing_mode && $css == "")
+		$css .= " "; //ALWAYS NECESSARY WHEN EDITING
+	return $css;
+}
+
+//PLUGIN UPDATER
+if(lc_get_apikey()):
+	require plugin_dir_path(__FILE__) . 'modules/plugin-update-checker/plugin-update-checker.php';
+	$myUpdateChecker = Puc_v4_Factory::buildUpdateChecker(	'https://updater.livecanvas.com/lc-plugin-updater-meta/?apikey='.lc_get_apikey(),	__FILE__,	'livecanvas' );
+endif;
+
+
+//FIX OLD PICOSTRAP THEMES, not always efficient
+//as per https://livecanvas.com/fixing-picostrap-js-and-wordpress-6-4/
+add_action('after_setup_theme',function(){
+    $current_wp_version = get_bloginfo('version');
+    if (version_compare($current_wp_version, '6.4', '>')) {
+        remove_filter( 'clean_url', 'picostrap_async_scripts', 11);
+    }
+}, 99999);
+
+
+// UTILITY FUNCTION
+//grab content in a class from a html element
+function lc_filter_html_by_class($class, $html, $keep_wrapper=TRUE){
+
+    $dom = new DomDocument();
+	@$dom->loadHTML(mb_convert_encoding($html, 'HTML-ENTITIES', 'UTF-8'));
+	$xpath = new DOMXpath($dom);
+
+	//https://devhints.io/xpath
+	$matching_nodes = $xpath->query("//*[contains(@class, '". $class ."')]");
+
+	@$node = $matching_nodes[0];
+	if (!$node) return;
+
+    //default case, return the element with its wrapper DIV
+	if($keep_wrapper) return $node->ownerDocument->saveHTML($node);
+
+    //grab inner node
+    $innerHTML= '';
+    $children = $node->childNodes;
+    foreach ($children as $child) {
+        $innerHTML .= $child->ownerDocument->saveXML( $child );
+    }
+
+    return $innerHTML;
+
+}
+
+//[TO ALLOW USING IN ANY THEME]:
+//FOR SINGLE PAGES & POSTS THAT USE LC, when force-embedded-template-for-lc-pages option is set,
+// and for TEMPLATE PARTIALS: ENFORCE a plugin-based, THEME - INDEPENDENT, clean SINGLE TEMPLATE that resides into the plugin
+add_filter( 'template_include', 'lc_load_custom_template_for_posts_using_livecanvas', 99);
+
+function lc_load_custom_template_for_posts_using_livecanvas ($the_template){
+	global $post;
+	if ( lc_plugin_option_is_set("force-embedded-template-for-lc-pages")  &&  is_singular() &&  lc_post_is_using_livecanvas($post->ID) ) {
+		$the_template = dirname( __FILE__ ) . '/modules/templates/single-lc-template.php';
+	}
+	return $the_template;
+}
+
+
+// Remove tangible_template_system library menu elements
+function lc_remove_tangible_menu_page(){
+    remove_menu_page('tangible'); // Removes the 'Tangible' menu page
+}
+add_action('admin_menu', 'lc_remove_tangible_menu_page', 11);
+
+
+/////// this is a modified copy of wp's do_shortcode function,
+// disabling do_shortcodes_in_html_tags, as it breaks shortcodes in attributes ($post does not work)
+
+function lct_do_shortcode( $content, $ignore_html = false ) {
+	global $shortcode_tags;
+
+	if ( false === strpos( $content, '[' ) ) {
+		return $content;
+	}
+
+	if ( empty( $shortcode_tags ) || ! is_array( $shortcode_tags ) ) {
+		return $content;
+	}
+
+	// Find all registered tag names in $content.
+	preg_match_all( '@\[([^<>&/\[\]\x00-\x20=]++)@', $content, $matches );
+	$tagnames = array_intersect( array_keys( $shortcode_tags ), $matches[1] );
+
+	if ( empty( $tagnames ) ) {
+		return $content;
+	}
+
+	// LC NOTE: this is the only change: we skip do_shortcodes_in_html_tags
+	//$content = do_shortcodes_in_html_tags( $content, $ignore_html, $tagnames );
+
+	$pattern = get_shortcode_regex( $tagnames );
+	$content = preg_replace_callback( "/$pattern/", 'do_shortcode_tag', $content );
+
+	// Always restore square braces so we don't break things like <!--[if IE ]>.
+	$content = unescape_invalid_shortcodes( $content );
+
+	return $content;
+}
+
+// allow downloading as html files from sections
+// Add a custom "Download Raw HTML" action link in the post row actions
+add_filter('post_row_actions', 'add_download_html_link', 10, 2);
+function add_download_html_link($actions, $post) {
+    // Only for our custom post type and for admins
+    if (  in_array($post->post_type , array('lc_block', 'lc_section', 'lc_partial')) && current_user_can('administrator') ) {
+        // Create a nonce-protected URL to download the raw HTML
+        $download_url = wp_nonce_url(
+            admin_url('admin-post.php?action=download_raw_html&post_id=' . $post->ID),
+            'download_raw_html_' . $post->ID
+        );
+        $actions['download_raw_html'] = '<a href="' . esc_url($download_url) . '" target="_blank">Download HTML</a>';
+    }
+    return $actions;
+}
+
+// Hook to handle the download request
+add_action('admin_post_download_raw_html', 'handle_download_raw_html');
+function handle_download_raw_html() {
+    // Ensure the user is an admin
+    if ( ! current_user_can('administrator') ) {
+        wp_die('Insufficient permissions.');
+    }
+    
+    // Get the post ID from the query string
+    $post_id = isset($_GET['post_id']) ? absint($_GET['post_id']) : 0;
+    if ( ! $post_id ) {
+        wp_die('Invalid post ID.');
+    }
+    
+    // Verify the nonce
+    if ( ! isset($_GET['_wpnonce']) || ! wp_verify_nonce($_GET['_wpnonce'], 'download_raw_html_' . $post_id) ) {
+        wp_die('Nonce verification failed.');
+    }
+    
+    // Get the post  
+    $post = get_post($post_id);
+    if ( ! $post   ) {
+        wp_die('Invalid post.');
+    }
+    
+    // Create a filename based on the post title
+    $filename = sanitize_title_with_dashes($post->post_title) . '.html';
+    
+    // Send the headers to force download
+    header('Content-Type: text/html');
+    header('Content-Disposition: attachment; filename="' . $filename . '"');
+    
+    // Output the raw post content
+    echo $post->post_content;
+    exit;
+}
+
+// Handle URL: ?redirect_to_customizer
+add_action('admin_init', function() {
+    if (isset($_GET['redirect_to_customizer']) && current_user_can('manage_options')) {
+        $customizer_url = add_query_arg([
+            'url'    => home_url('/'),
+            'return' => home_url(), // or set exactly where you want to return
+        ], admin_url('customize.php'));
+
+        wp_redirect($customizer_url);
+        exit;
+    }
+});
+
+
+
+//function to determine if custom html files are available in child theme
+function lc_theme_has_custom_html( $subfolder ='sections' ) {
+
+	$sections_path = get_stylesheet_directory() . '/livecanvas/' . $subfolder . '/';
+
+    if (!is_dir($sections_path)) {
+        return false;
+    }
+
+    $directory = new RecursiveDirectoryIterator(
+        $sections_path,
+        FilesystemIterator::SKIP_DOTS
+    );
+
+    $filter = new RecursiveCallbackFilterIterator($directory, function ($current, $key, $iterator) {
+        // Skip folders named "Post Loops" (case-insensitive)
+        if ($iterator->hasChildren()) {
+            return strtolower($current->getFilename()) !== 'post loops';
+        }
+        return true;
+    });
+
+    $iterator = new RecursiveIteratorIterator($filter);
+
+    foreach ($iterator as $file) {
+        if (
+            $file->isFile() &&
+            strtolower($file->getExtension()) === 'html' &&
+            stripos($file->getFilename(), 'sample') === false
+        ) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+// HELPER TO READ FROM THEME CONSTANT: LC_EDITOR_CONFIG
+// Helper to fetch config values
+function lc_get_config( $key = null ) {
+    $config = defined( 'LC_EDITOR_CONFIG' ) ? LC_EDITOR_CONFIG : [];
+
+    if ( $key ) {
+        return $config[ $key ] ?? null;
+    }
+
+    return $config;
+}

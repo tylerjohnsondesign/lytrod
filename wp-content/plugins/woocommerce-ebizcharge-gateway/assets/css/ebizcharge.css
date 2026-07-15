@@ -1,0 +1,316 @@
+/*!
+ * Ebizcharge v1.0
+ * Copyright 2021 The CBS Authors
+ * Copyright 2021 CBS, Inc.
+ * Licensed under MIT (https://github.com/twbs/bootstrap/blob/main/LICENSE)
+ */
+/* CSS Document */
+
+.button-success {
+    background: #28a745 !important;
+    border-color: #28a745 !important;
+    color: #fff !important;
+}
+
+.button-success.hover, .button-success:focus {
+    background: #218838 !important;
+    border-color: #1e7e34 !important;
+}
+
+#woocommerce_ebizcharge_cardtypes {
+    height: 100px !important;
+}
+
+.fieldset-style {
+    border: none;
+    padding-left: 0 !important;
+}
+
+#econnect-buttons {
+    padding-left: 235px;
+}
+
+
+#ebizcharge-new-bank-info {
+    padding: 0 0 0 30px;
+}
+
+#ebizcharge-stored-bank-info {
+    padding: 10px 0 0 30px;
+    clear: both;
+}
+
+#cvv {
+    width: 50px;
+}
+
+#Add-new-card {
+    float: right;
+    margin-right: 5px;
+}
+
+#Add-new-bank {
+    float: right;
+    margin-right: 5px;
+}
+
+header .pull-left {
+    float: none !important;
+}
+
+.del-message {
+    color: red;
+}
+
+.pull-left {
+    float: left;
+}
+
+.pull-right {
+    float: right;
+}
+
+.mr-5 {
+    margin-right: 5px;
+}
+
+.mb-5 {
+    margin-bottom: 5px;
+}
+
+/*.cancel-btn {
+    background-color: #2b2b2b;
+}*/
+
+.full-width {
+    width: 100%;
+}
+
+/*.payment_method_ebizcharge label {
+    padding-left: 0 !important;
+}*/
+
+.payment_method_ebizcharge label img {
+    width: 33px !important;
+}
+
+.payment_method_ebizcharge select {
+    min-height: 30px;
+    background-position-x: calc(100% - 0.1rem) !important;
+}
+
+.ebizcharge-cc-payment {
+    display: none !important;
+}
+
+.ebizcharge-cc-payment-label {
+    display: inline;
+    background: #f2f2f2;
+    padding: 5px 10px;
+    border-bottom: 1px solid #f2f2f2;
+}
+
+.ebizcharge-cc-payment:checked + label {
+    display: inline;
+    border-bottom: 1px solid #444;
+}
+
+.ebizcharge-bank-payment {
+    display: none;
+}
+
+.ebizcharge-bank-payment-label {
+    display: inline;
+    background: #f2f2f2;
+    padding: 5px 10px;
+    border-bottom: 1px solid #f2f2f2;
+}
+
+.ebizcharge-bank-payment:checked + label {
+    display: inline;
+    border-bottom: 1px solid #444;
+}
+
+#ebizcharge-stored-card {
+    float: left;
+    margin: 10px 0;
+}
+
+#ebizcharge_update_cc {
+    float: left;
+    margin: 10px 0;
+}
+
+select.woocommerce-cc-month {
+    width: auto !important;
+    margin-right: 10px;
+}
+
+select.woocommerce-cc-year {
+    width: auto !important;
+    float: right;
+}
+
+select.woocommerce-cc-month-my-ac {
+    width: auto !important;
+    margin-right: 10px;
+}
+
+select.woocommerce-cc-year-my-ac {
+    width: auto !important;
+    float: left;
+}
+
+select.woocommerce-cc-month-update {
+    width: auto !important;
+    float: left;
+    margin-right: 10px;
+}
+
+select.woocommerce-cc-year-update {
+    width: auto !important;
+    float: right;
+}
+
+.info-tooltip {
+    float: left !important;
+    width: 100% !important;
+}
+
+#ebizcharge-payment-method {
+    float: left;
+    margin: 10px 0;
+}
+
+#ebizcharge_update_cc {
+    float: left;
+    margin: 10px 0;
+}
+
+select#expmonth {
+    float: left;
+    margin: 0 3px 0 0;
+}
+
+.form-row.form-row-last.exp-year {
+    margin-left: 8px !important;
+}
+
+.help-tooltip {
+    float: left !important;
+    width: auto !important;
+    margin: 5px 0;
+}
+
+.exp-month {
+    width: auto !important;
+}
+
+.exp-year {
+    width: 30% !important;
+    float: left !important;
+    margin: 0 0 0 30px !important;
+}
+
+.no-cards {
+    float: left;
+    width: 100%;
+}
+
+.sixpixel {
+    padding: 6px !important;
+}
+
+.no-payments {
+    float: left;
+    width: 100%;
+}
+
+.ebiz-methods {
+    margin-top: 15px;
+}
+
+.empty-error {
+    color: red;
+    display: none;
+    margin: 0 0 10px 0;
+    clear: left;
+}
+
+.blockOverlay {
+    z-index: 1000;
+    border: medium none;
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    top: 0;
+    left: 0;
+    background: rgb(255, 255, 255);
+    opacity: 0.6;
+    cursor: default;
+    position: absolute;
+}
+
+.payment-reload {
+    text-decoration: none;
+    background: goldenrod;
+    padding: 5px;
+}
+
+.surcharge-alert {
+    font-size: 12px;
+    margin-bottom: 0 !important;
+}
+
+#ebiz-surcharge {
+    margin-top: 7px;
+    border-top: 1px solid gainsboro
+}
+
+@media (max-width: 768px) {
+
+    #bank-form .form-row-first,
+    #cc-form .form-row-first,
+    #cc-form .form-row-last {
+        width: 100% !important;
+        float: none !important;
+        margin-bottom: 1em !important;
+    }
+
+    #ebizcharge-new-info select.card,
+    #ebizcharge-new-info input.input-text,
+    #ebizcharge-stored-info input.input-text,
+    #ebizcharge-update-info input.input-text,
+    #ebizcharge-update-info select.card {
+        display: block !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        box-sizing: border-box;
+    }
+
+    /* Make the first radio + label inline */
+    .ebizcharge-cc-payment,
+    .ebizcharge-cc-payment-label {
+        display: inline-block !important;
+        vertical-align: middle !important;
+    }
+
+    /* Make the second radio + label inline, but on a new line */
+    .ebizcharge-bank-payment,
+    .ebizcharge-bank-payment-label {
+        display: inline-block !important;
+        vertical-align: middle !important;
+    }
+
+    .ebizcharge-cc-payment,
+    .ebizcharge-bank-payment {
+        display: none !important;
+    }
+
+    #actype, #cvv {
+        width: 100% !important;
+    }
+
+}
+

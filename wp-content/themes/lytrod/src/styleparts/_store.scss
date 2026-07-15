@@ -1,0 +1,126 @@
+.woocommerce-Input{
+    height: 35px!important;
+}
+
+
+.woocommerce-privacy-policy-text p {
+    display: none!important;
+}
+#reg_password2{
+    height: 35px;
+}
+
+/*acount*/
+
+.woocommerce-MyAccount-navigation-link.is-active {
+    color: #1a73e8;
+    border-radius: 0 50px 50px 0;
+    background: #e8f0fe;
+    a{
+        color: #1a73e8;
+    }
+}
+
+.woocommerce-MyAccount-navigation-link a {
+    display: block;
+    padding: .5em 1em;
+}
+
+.woocommerce-MyAccount-navigation{
+    ul{
+        list-style: none;
+        font-size: 17px;
+        padding: 0;
+    }
+    
+    li{
+        &:hover{
+            a{
+                color: #1a73e8;
+            } 
+            border-radius: 0 50px 50px 0;
+            background: #e8f0fe;
+        }
+        a{
+            text-decoration: none;
+            color: black;
+        }
+    }
+}
+
+// .woocommerce-account #page > div.containery{
+//     min-height: 63.7vh;
+// }
+
+.lytrodbannerlinks {
+    display: flex;
+    justify-content:flex-start;
+   
+    
+    a{
+        padding: 0;
+        margin: 0;
+        margin-right: 10px;
+        margin-left: 10px;
+        color: white;
+        text-decoration: none;
+        &:hover{
+            color: #c6c6c6;
+        }
+    }
+}
+
+.coly-md-8.nopadding {
+    padding: 0;
+    display: flex;
+    align-items: center;
+}
+
+.wrapperbanner{
+    background-color: #0d4e96;
+    color: white;
+    border-radius: 0 50px 50px 0;
+    margin-bottom: 20px;
+    padding: 10px;
+    h1{
+        font-size: 30px;
+    }
+}
+.dashbox {
+    height: 60px;
+    border: 1px solid #c6c6c6;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-top: 15px;
+    border-radius: 8px;
+    text-decoration: none;
+    
+}
+.mainbox{
+    a{
+        text-decoration: none;
+    }
+}
+.accountcontent{
+    min-height: 54.7vh;
+}
+.hero-1 {
+    // background-image: linear-gradient(to bottom right,rgba(0,0,0,.4),rgba(0,0,0,.1));
+    background-size: cover;
+    background-position: center bottom;
+    background-attachment: fixed;
+    min-height: 43vh!important;
+    display: flex;
+}
+.storeproductcontainer{
+    padding-top: 50px;
+    padding-bottom: 50px;
+}
+
+.box-1{
+    img{
+        width: 100%;
+        height: 100%;
+    }
+}
