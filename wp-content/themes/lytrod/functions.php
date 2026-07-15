@@ -538,7 +538,7 @@ function njengah_simplify_checkout_virtual( $fields ) {
 
 
 
-if (strpos($_SERVER['HTTP_HOST'], 'staging') !== false) {
+if (strpos($_SERVER['HTTP_HOST'] ?? '', 'staging') !== false) {
     add_filter( 'woocommerce_subscriptions_is_duplicate_site', '__return_true' );
 }
 
@@ -553,18 +553,69 @@ if (strpos($_SERVER['HTTP_HOST'], 'staging') !== false) {
 
 add_filter('wcs_renewal_order_created', 'disable_auto_payments_for_subscriptions', 10, 2);
 
+/**
+ * Historically this filter stripped the gateway off EVERY renewal order, forcing
+ * every subscription onto manual payment — this was the "failed auto-renewal" bug:
+ * saved cards were never charged and subscriptions silently dropped to on-hold.
+ *
+ * It now only strips the gateway for subscriptions that are NOT enabled for real
+ * automatic renewal. Enabled subs keep their gateway, so WooCommerce Subscriptions
+ * fires woocommerce_scheduled_subscription_payment_{gateway} and charges the saved
+ * card as intended.
+ *
+ * Rollout is gated by lytrod_subscription_auto_renew_enabled() (below) so this can
+ * be deployed with ZERO behavior change — by default no subscription auto-renews —
+ * then enabled per-subscription for a pilot and finally site-wide.
+ */
 function disable_auto_payments_for_subscriptions($renewal_order, $subscription) {
-    // Set the payment method to none for the renewal order
+    // Auto-renewal enabled for this sub → leave the gateway intact so WCS charges it.
+    if ( function_exists( 'lytrod_subscription_auto_renew_enabled' )
+        && lytrod_subscription_auto_renew_enabled( $subscription ) ) {
+        return $renewal_order;
+    }
+
+    // Otherwise preserve the historical manual behavior: strip the gateway so the
+    // customer pays the renewal order by hand.
     $renewal_order->set_payment_method('');
-    // Remove any saved payment method
     delete_post_meta($renewal_order->get_id(), '_payment_method');
     delete_post_meta($renewal_order->get_id(), '_payment_method_title');
-    // Mark the order as pending payment
     $renewal_order->set_status('pending');
-    // Save the changes
     $renewal_order->save();
 
     return $renewal_order;
+}
+
+/**
+ * Whether a subscription should be charged automatically on renewal.
+ *
+ * Controls the staged rollout of the auto-renewal fix. Order of precedence:
+ *   1. Manual/PO subscriptions (_requires_manual_renewal) never auto-charge.
+ *   2. Option 'lytrod_auto_renew_all' = 'yes'  → all card-backed subs auto-renew (final rollout).
+ *   3. Option 'lytrod_auto_renew_subs' (CSV of subscription IDs) → pilot allowlist.
+ *   4. Filter 'lytrod_subscription_auto_renew_enabled' for any custom override.
+ *
+ * Defaults to FALSE for everything, so deploying the code changes nothing until an
+ * operator opts subscriptions in. Recommended rollout (pick a current, chargeable
+ * active sub from the Phase 0 audit — e.g. #29137, source + saved token):
+ *   update_option('lytrod_auto_renew_subs', '29137');   // pilot one known-good sub
+ *   ...force a renewal (WP-CLI / admin "Process renewal") and verify the Stripe
+ *      charge + license expiry extension, since real renewals are months out...
+ *   update_option('lytrod_auto_renew_all', 'yes');       // then enable site-wide
+ */
+function lytrod_subscription_auto_renew_enabled( $subscription ) {
+    $enabled = false;
+
+    if ( $subscription instanceof WC_Subscription && ! $subscription->is_manual() ) {
+        if ( 'yes' === get_option( 'lytrod_auto_renew_all' ) ) {
+            $enabled = true;
+        } else {
+            $allow = get_option( 'lytrod_auto_renew_subs', '' );
+            $ids   = array_filter( array_map( 'absint', explode( ',', (string) $allow ) ) );
+            $enabled = in_array( (int) $subscription->get_id(), $ids, true );
+        }
+    }
+
+    return (bool) apply_filters( 'lytrod_subscription_auto_renew_enabled', $enabled, $subscription );
 }
 
 // add_filter( 'woocommerce_subscriptions_is_duplicate_site', '__return_true' );
