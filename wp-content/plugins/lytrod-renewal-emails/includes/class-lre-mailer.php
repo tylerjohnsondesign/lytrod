@@ -302,6 +302,24 @@ class LRE_Mailer {
     }
 
     private static function wrap_in_template( string $content, string $subject = '' ): string {
+		/*
+		 * Prefer the shared Lytrod Emails shell so these reminders match every
+		 * WooCommerce transactional email. This plugin sends via wp_mail() directly,
+		 * so WC_Email::style_inline() never runs on it — lytrod_emails_wrap() does the
+		 * CSS inlining itself using the same emails/email-styles.php template.
+		 *
+		 * The heredoc below stays as the fallback for when Lytrod Emails is inactive.
+		 */
+		if ( function_exists( 'lytrod_emails_wrap' ) ) {
+			return lytrod_emails_wrap(
+				$content,
+				array(
+					'heading'   => $subject ? $subject : __( 'Lytrod Software', 'lytrod-emails' ),
+					'preheader' => $subject,
+				)
+			);
+		}
+
         $site_url  = esc_url( get_site_url() );
         $site_name = esc_html( get_bloginfo( 'name' ) );
 		$header_text = $subject ? esc_html( $subject ) : 'Lytrod Software';
