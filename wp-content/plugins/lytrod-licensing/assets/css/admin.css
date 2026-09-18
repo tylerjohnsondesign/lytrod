@@ -1,0 +1,100 @@
+/**
+ * Product data → Licenses / Term Discounts.
+ *
+ * The `.wrap` two-control layout is not styled by WooCommerce core — WooCommerce Subscriptions
+ * ships its own rule keyed on `._subscription_trial_length_field`. Ours is keyed on our own
+ * field class so the two never collide.
+ */
+
+.woocommerce_options_panel ._lytrod_free_for_field .wrap {
+	display: block;
+	width: 50%;
+}
+
+.woocommerce_options_panel ._lytrod_free_for_field .wrap input.wc_input_subscription_trial_length {
+	width: 48%;
+}
+
+.woocommerce_options_panel ._lytrod_free_for_field .select2-container:last-child {
+	width: 48% !important;
+	margin-left: 4%;
+}
+
+/* Sit the table in the field column with its label to the left, as core does for downloads. */
+.woocommerce_options_panel .lytrod-rows {
+	padding: 0 12px 0 162px;
+	position: relative;
+}
+
+.woocommerce_options_panel .lytrod-rows > label {
+	position: absolute;
+	left: 12px;
+	margin: 0;
+	width: 140px;
+	line-height: 24px;
+}
+
+.woocommerce_options_panel .lytrod-rows table {
+	width: 100%;
+	margin: 0 0 10px;
+}
+
+.woocommerce_options_panel .lytrod-rows table th {
+	font-weight: 600;
+	white-space: nowrap;
+}
+
+.woocommerce_options_panel .lytrod-rows table input.input_text {
+	width: 100%;
+	margin: 0;
+}
+
+.woocommerce_options_panel .lytrod-rows table input.lytrod-narrow {
+	max-width: 8em;
+}
+
+.woocommerce_options_panel .lytrod-rows td.sort,
+.woocommerce_options_panel .lytrod-rows th.sort {
+	width: 24px;
+	cursor: move;
+	background: url( "../../../../../plugins/woocommerce/assets/images/sort.png" ) no-repeat center;
+}
+
+.woocommerce_options_panel .lytrod-rows .lytrod-delete-row {
+	color: #a00;
+	text-decoration: none;
+}
+
+.woocommerce_options_panel .lytrod-rows .lytrod-delete-row:hover {
+	color: #dc3232;
+}
+
+/* Read-only price preview strip. */
+.woocommerce_options_panel .lytrod-preview {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+	float: left;
+	width: 50%;
+}
+
+.woocommerce_options_panel .lytrod-preview-cell {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	min-width: 74px;
+	padding: 6px 8px;
+	border: 1px solid #dcdcde;
+	border-radius: 4px;
+	background: #f6f7f7;
+	font-size: 12px;
+	line-height: 1.3;
+	text-align: center;
+}
+
+.woocommerce_options_panel .lytrod-preview-cell strong {
+	color: #50575e;
+	font-size: 11px;
+	text-transform: uppercase;
+	letter-spacing: .04em;
+}

@@ -1,0 +1,198 @@
+/**
+ * Term and licence-count picker.
+ *
+ * Uses the Lytrod brand palette so it sits with the rest of the site: #0d4e96 primary,
+ * #4494d0 accent, #eff3f9 surface, #222 ink, 6px radii.
+ */
+
+.lytrod-picker {
+	margin: 0 0 22px;
+	font-family: 'Raleway', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+	color: #222;
+}
+
+.lytrod-picker__free {
+	margin: 0 0 16px;
+	padding: 10px 14px;
+	border-radius: 6px;
+	background: #eff3f9;
+	color: #0d4e96;
+	font-size: 14px;
+	font-weight: 600;
+}
+
+.lytrod-picker__field {
+	margin: 0 0 18px;
+	padding: 0;
+	border: 0;
+}
+
+.lytrod-picker__label {
+	display: block;
+	margin: 0 0 8px;
+	padding: 0;
+	color: #5b5b5b;
+	font-size: 11px;
+	font-weight: 700;
+	letter-spacing: .08em;
+	text-transform: uppercase;
+}
+
+/* ---------- term bubbles ---------- */
+
+.lytrod-bubbles {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+}
+
+.lytrod-bubble__input {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	margin: -1px;
+	padding: 0;
+	overflow: hidden;
+	clip: rect(0 0 0 0);
+	border: 0;
+}
+
+.lytrod-bubble {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	align-items: center;
+	min-width: 92px;
+	padding: 12px 14px;
+	border: 1px solid #dbe5f0;
+	border-radius: 6px;
+	background: #fff;
+	cursor: pointer;
+	line-height: 1.2;
+	text-align: center;
+	transition: border-color .12s ease, background-color .12s ease;
+}
+
+.lytrod-bubble:hover {
+	border-color: #4494d0;
+}
+
+.lytrod-bubble__years {
+	font-size: 15px;
+	font-weight: 700;
+}
+
+.lytrod-bubble__save {
+	color: #0d4e96;
+	font-size: 11px;
+	font-weight: 700;
+	letter-spacing: .04em;
+	text-transform: uppercase;
+}
+
+.lytrod-bubble__input:checked + .lytrod-bubble {
+	border-color: #0d4e96;
+	box-shadow: inset 0 0 0 1px #0d4e96;
+	background: #eff3f9;
+}
+
+.lytrod-bubble__input:focus-visible + .lytrod-bubble {
+	outline: 2px solid #4494d0;
+	outline-offset: 2px;
+}
+
+/* ---------- licence stepper ---------- */
+
+.lytrod-stepper {
+	display: inline-flex;
+	align-items: stretch;
+	overflow: hidden;
+	border: 1px solid #dbe5f0;
+	border-radius: 6px;
+}
+
+.lytrod-stepper__btn {
+	width: 40px;
+	padding: 0;
+	border: 0;
+	background: #eff3f9;
+	color: #0d4e96;
+	font-size: 18px;
+	font-weight: 700;
+	line-height: 1;
+	cursor: pointer;
+}
+
+.lytrod-stepper__btn:hover {
+	background: #dbe5f0;
+}
+
+.lytrod-stepper__input {
+	width: 76px;
+	margin: 0;
+	padding: 10px 8px;
+	border: 0;
+	border-left: 1px solid #dbe5f0;
+	border-right: 1px solid #dbe5f0;
+	border-radius: 0;
+	font-size: 15px;
+	font-weight: 700;
+	text-align: center;
+	-moz-appearance: textfield;
+}
+
+.lytrod-stepper__input::-webkit-outer-spin-button,
+.lytrod-stepper__input::-webkit-inner-spin-button {
+	margin: 0;
+	-webkit-appearance: none;
+}
+
+.lytrod-picker__tier {
+	margin: 8px 0 0;
+	color: #5b5b5b;
+	font-size: 13px;
+}
+
+/* ---------- running total ---------- */
+
+.lytrod-quote {
+	padding: 14px 16px;
+	border-radius: 6px;
+	background: #eff3f9;
+}
+
+.lytrod-quote__row {
+	display: flex;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: 12px;
+}
+
+.lytrod-quote__label {
+	color: #5b5b5b;
+	font-size: 11px;
+	font-weight: 700;
+	letter-spacing: .08em;
+	text-transform: uppercase;
+}
+
+.lytrod-quote__total {
+	color: #0d4e96;
+	font-size: 26px;
+	font-weight: 700;
+	letter-spacing: -.02em;
+}
+
+.lytrod-quote__note {
+	margin: 6px 0 0;
+	color: #5b5b5b;
+	font-size: 13px;
+	line-height: 1.5;
+}
+
+@media (max-width: 600px) {
+	.lytrod-bubble {
+		min-width: 0;
+		flex: 1 1 30%;
+	}
+}
