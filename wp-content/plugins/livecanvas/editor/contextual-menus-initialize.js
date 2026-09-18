@@ -167,6 +167,7 @@ function initialize_contextual_menus() {
         const $menu = iframeDoc.find(menu);
 
         previewFrameBody.on("mouseenter", sel, function () {
+            if (previewFrameBody.data("lc-contextual-menus-suspended")) return;
             if ($(this).closest(".lc-rendered-shortcode-wrap").length) return;
 
             const $el = $(this);
@@ -257,6 +258,7 @@ function initialize_contextual_menus_universal_selection(scope_selector) {
 
     //MOUSE ENTERS ANY ELEMENT 
     previewFrameBody.on("mouseover", "main#lc-main *:not('.lc-contextual-menu')", function (e) {
+        if (previewFrameBody.data("lc-contextual-menus-suspended")) return;
         if ($(this).closest(".lc-rendered-shortcode-wrap").length > 0) return; //exit if we're hovering a shortcode
         if ($(this).closest(".lc-no-selection").length > 0) return; //exit if we're hovering a lc-no-selection
         if (e.metaKey) return; // exit if cmd is pressed

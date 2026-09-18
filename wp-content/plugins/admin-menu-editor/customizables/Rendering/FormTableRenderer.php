@@ -5,15 +5,15 @@ namespace YahnisElsts\AdminMenuEditor\Customizable\Rendering;
 use YahnisElsts\AdminMenuEditor\Customizable\Controls\Control;
 use YahnisElsts\AdminMenuEditor\Customizable\Controls\ControlGroup;
 use YahnisElsts\AdminMenuEditor\Customizable\Controls\Section;
+use YahnisElsts\AdminMenuEditor\Customizable\HtmlHelper;
+use YahnisElsts\AdminMenuEditor\WireDSL\EvaluationContext;
 
 class FormTableRenderer extends ClassicRenderer {
-	const IS_STACKED_ATRIBUTE = 'controlGroupIsStacked';
-
 	protected $isInsideRow = false;
 
 	protected $sectionNestingLevel = 0;
 
-	public function renderSection(Section $section, Context $context) {
+	public function renderSection(Section $section, EvaluationContext $context) {
 		if ( !$section->shouldRender() ) {
 			//Should this even be allowed?
 			echo sprintf(
@@ -26,7 +26,7 @@ class FormTableRenderer extends ClassicRenderer {
 		echo '<div>';
 		$this->renderSectionHeading($section);
 
-		$description = $section->getDescription();
+		$description = $section->getDescription($context);
 		if ( !empty($description) ) {
 			//phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- HTML intentionally allowed.
 			echo "\n", '<p>', $description, '</p>';
@@ -48,7 +48,7 @@ class FormTableRenderer extends ClassicRenderer {
 		}
 	}
 
-	protected function renderChildSection(Section $section, Context $context) {
+	protected function renderChildSection(Section $section, EvaluationContext $context) {
 		$this->sectionNestingLevel++;
 
 		if ( $section->hasTitle() ) {
@@ -62,8 +62,10 @@ class FormTableRenderer extends ClassicRenderer {
 		$this->sectionNestingLevel--;
 	}
 
-	protected function renderControlGroup(ControlGroup $group, Context $context) {
+	protected function renderControlGroup(ControlGroup $group, EvaluationContext $context) {
 		$isStacked = $group->isStacked();
+		$classes = $group->getClasses();
+		$titleDone = false;
 
 		/*
 		 * - Render top-level groups as table rows. Optionally, their contents
@@ -88,18 +90,25 @@ class FormTableRenderer extends ClassicRenderer {
 			);
 
 			$this->renderGroupTitleContent($group);
+			$titleDone = true;
 
 			echo '</th>';
 			echo '<td>';
 		}
 
 		if ( $isFieldset ) {
-			/** @noinspection HtmlUnknownAttribute */
-			printf('<fieldset %s>', $group->isEnabled($context) ? '' : 'disabled');
+			HtmlHelper::outputTag('fieldset', [
+				'disabled' => !$group->isEnabled($context),
+				'class'    => $classes,
+			]);
+		}
+
+		if ( !$renderAsTableRow && !$titleDone ) {
+			$this->renderGroupTitleContent($group);
 		}
 
 		$childContext = $context->withAttributes([
-			self::IS_STACKED_ATRIBUTE => $isStacked,
+			self::IS_STACKED_ATTRIBUTE => $isStacked,
 		]);
 		$this->renderGroupChildren($group, $childContext);
 
@@ -113,14 +122,14 @@ class FormTableRenderer extends ClassicRenderer {
 		}
 	}
 
-	public function renderControl(Control $control, Context $context) {
+	public function renderControl(Control $control, EvaluationContext $context) {
 		if ( !$control->shouldRender() ) {
 			//This should really never happen.
 			echo '<!-- Skipped control: ' . esc_html($control->getId()) . ' -->';
 			return;
 		}
 
-		$addLineBreaks = ($context->getAttribute(self::IS_STACKED_ATRIBUTE) && !$control->declinesExternalLineBreaks());
+		$addLineBreaks = ($context->getAttribute(self::IS_STACKED_ATTRIBUTE) && !$control->declinesExternalLineBreaks());
 		if ( $addLineBreaks ) {
 			echo '<p>';
 		}

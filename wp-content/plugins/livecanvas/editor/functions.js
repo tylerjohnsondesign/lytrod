@@ -591,6 +591,23 @@ function updatePreview() {
 	saveHistoryStep();
 }
 
+function updateAddNewSectionButtonVisibility() {
+	var main = typeof doc !== "undefined" && doc.querySelector("main#lc-main");
+	var editorPostType = typeof lc_editor_post_type === "undefined" ? "" : lc_editor_post_type;
+	var shouldHide = ["lc_section", "lc_block"].includes(editorPostType);
+
+	if (main && !shouldHide) {
+		var sections = Array.prototype.slice.call(main.children).filter(function (element) {
+			return element.tagName === "SECTION" && element.getAttribute("id") !== "global-footer";
+		});
+		var lastSection = sections[sections.length - 1];
+
+		shouldHide = !!lastSection && lastSection.innerHTML.trim() === "";
+	}
+
+	$("#primary-tools").toggle(!shouldHide);
+}
+
 var enrichPreview = debounce(function() {
 	myConsoleLog("Run debounced: enrichPreview");
 	previewFrame = $("#previewiframe");
@@ -657,8 +674,10 @@ var enrichPreview = debounce(function() {
 	//SPECIAL CASE WHEN EDITING lc_section or a lc_block cpts : HIDE ADD SECT BUTTON
 	if(( previewFrame.contents().find("body").hasClass('lc_section-template'))  || (previewFrame.contents().find("body").hasClass('lc_block-template')) ) {
 		$('#primary-tools').hide();
-		$('.open-main-html-editor').click();
+		if (window.openMainHtmlCodeEditor) window.openMainHtmlCodeEditor();
+		else $('.open-main-html-editor').click();
 	}
+	updateAddNewSectionButtonVisibility();
 	
 	//INITIALIZE CONTENTEDITABLE DEFAULT PARAGRAPH SEPARATOR  
 	previewiframe.contentDocument.execCommand("DefaultParagraphSeparator", false, "p");
@@ -777,6 +796,8 @@ function  enrichPreviewSectorial  (selector) {
 
     //UPDATE TREE IF OPEN
     if ($("#tree-body").is(":visible")) redrawTreePart(selector);
+
+	updateAddNewSectionButtonVisibility();
 } 
 
  // HISTORY ///////////
@@ -867,6 +888,10 @@ function setEditorPreference(option_name, option_value) {
 }
 
 /* ******************* KEYBOARD EVENTS HANDLING  ******************* */
+function repaintPreview() {
+	updatePreview();
+}
+
 function handleKeyboardEvents(e){
 
 	//HANDLE CMD-ALT SOMETHING
@@ -884,13 +909,14 @@ function handleKeyboardEvents(e){
 
 			case 'p':
 				e.preventDefault();
-				updatePreview();
+				repaintPreview();
 				break;
 
 			case 'e':
 				e.preventDefault();
 				if (lc_editor_simplified_client_ui) return;
-				$(".open-main-html-editor").click();
+				if (window.openMainHtmlCodeEditor) window.openMainHtmlCodeEditor();
+				else $(".open-main-html-editor").click();
 				break;
 
 			case 'l':
@@ -919,7 +945,8 @@ function handleKeyboardEvents(e){
 	if (e.keyCode == 27) { 
 		e.preventDefault();
 		$(".close-sidepanel").click();
-		$(".lc-editor-close").click();
+		if (window.closeCodeEditorWindow) window.closeCodeEditorWindow();
+		else $(".lc-editor-close").click();
 		$("#readymades-close").click();
 		previewFrame.contents().find(".lc-contextual-menu").hide();
 	}
@@ -1005,7 +1032,8 @@ function revealSidePanel(item_type, selector, layoutElementName="") {
 	//show top actions eg close and code button
 	$('#sidepanel .top-actions').show(); 
 	
-	$(".lc-editor-close").click();//close code editor
+	if (window.closeCodeEditorWindow) window.closeCodeEditorWindow();
+	else $(".lc-editor-close").click();//close code editor
 
 	//hide ux since well be moving the thing
 	/*

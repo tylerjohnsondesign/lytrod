@@ -74,6 +74,7 @@ add_filter('filter_lc_openai_key', 'modify_lc_openai_key');
 
 		<script type='text/javascript' src='<?php lc_print_editor_url() ?>libs/js-beautify/beautify-html.min.js'></script>
 		<script type='text/javascript' src='<?php lc_print_editor_url() ?>libs/js-beautify/beautify-css.min.js'></script>
+		<script type='text/javascript' src='<?php lc_print_editor_url() ?>code-editor-window-manager.js?v=<?php echo LC_SCRIPTS_VERSION ?>'></script>
 
         <?php if (!empty(locate_template('livecanvas/editor-configuration.js')) ){   ?>
                 <script data-pagespeed-no-defer type='text/javascript' src='<?php echo get_stylesheet_directory_uri() ?>/livecanvas/editor-configuration.js?v=<?php echo LC_SCRIPTS_VERSION ?>'></script>

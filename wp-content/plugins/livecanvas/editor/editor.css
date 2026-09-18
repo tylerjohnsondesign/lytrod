@@ -163,6 +163,51 @@ html.system-is-working, html.system-is-working *{
 #previewiframe {width: 100%;height:calc(100vh - var(--maintoolbar-height));border: 0px;NOtransition: all 0.5s ease-in-out; /* ,height 1s ease-in-out; */ margin: auto;display: block;z-index: 999}
 .push-aside-preview {margin-left: var(--sidepanel-width)}
 #previewiframe-wrap{transition: all 0.2s}
+body.lc-code-editor-split-mode #previewiframe-wrap {
+    margin-left: var(--lc-code-editor-split-width, 50vw);
+    width: calc(100vw - var(--lc-code-editor-split-width, 50vw));
+    overflow: auto;
+}
+body.lc-code-editor-split-mode #previewiframe-wrap.smartphone {
+    width: fit-content;
+    max-width: calc(100vw - var(--lc-code-editor-split-width, 50vw));
+}
+body.lc-code-editor-split-mode #lc-code-editor-window {
+    left: 0 !important;
+    top: var(--maintoolbar-height) !important;
+    height: calc(100vh - var(--maintoolbar-height)) !important;
+}
+body.lc-code-editor-split-v-mode #previewiframe-wrap {
+    height: calc(100vh - var(--maintoolbar-height) - var(--lc-code-editor-split-height, 50vh));
+    overflow: auto;
+}
+body.lc-code-editor-split-v-mode #previewiframe {
+    height: 100%;
+}
+body.lc-code-editor-split-v-mode #lc-code-editor-window {
+    left: 0 !important;
+    right: 0 !important;
+    top: auto !important;
+    bottom: 0 !important;
+    width: 100vw !important;
+    height: var(--lc-code-editor-split-height, 50vh) !important;
+}
+#lc-code-editor-winbox .wb-close {
+    display: none;
+}
+
+#lc-code-editor-winbox .wb-control {
+    display: none !important;
+}
+
+#lc-code-editor-winbox .wb-title {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    display: block;
+    opacity: 0;
+    font-size: 0;
+}
 
 body.lc-bottom-editor-is-shown #previewiframe {      }
 #codetextarea {position: absolute;bottom:0; /* calc(2px + var(--maintoolbar-height));*/background: var(--color-green)}
@@ -174,7 +219,7 @@ body.lc-bottom-editor-is-shown #previewiframe {      }
     position: absolute;
     top: height: var(--maintoolbar-height);
     left: 0;height: 100vh;font-size: 20px;width:100vw;color: #fff;z-index: 300;padding-top: 30vh;text-align: center;background: #fff;opacity:0.92}
- 
+
   
 #maintoolbar a {   color: var(--color-lightgrey); transition: all 0.5s ease-in-out; }
 #maintoolbar a:hover {    }
@@ -244,8 +289,22 @@ body.lc-bottom-editor-is-shown #previewiframe {      }
 }
 
  
-#responsive-toolbar a:hover, #responsive-toolbar a.is-active {
+#responsive-toolbar a.is-active {
     color: var(--color1);
+}
+
+#responsive-toolbar a {
+    border-radius: 3px;
+    transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+#responsive-toolbar a:hover:not(.is-active) {
+    color: var(--color-lightgrey);
+    background-color: rgba(255,255,255,0.07);
+}
+
+#responsive-toolbar a.is-active:hover {
+    background-color: rgba(255,255,255,0.05);
 }
 
 #responsive-toolbar a i {font-size: 15px;display: block;margin-bottom: 2px;}
@@ -278,6 +337,24 @@ body.lc-bottom-editor-is-shown #previewiframe {      }
   text-align: center;
 }
 #saving-form a:hover,#saving-form a.is-active {color: var(--color2);cursor: pointer}
+
+#saving-form #toggle-code-editor,
+#saving-form #toggle-tree-view {
+    border-radius: 3px;
+    transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+#saving-form #toggle-code-editor:hover:not(.is-active),
+#saving-form #toggle-tree-view:hover:not(.is-active) {
+    color: var(--color-lightgrey);
+    background-color: rgba(255,255,255,0.07);
+}
+
+#saving-form #toggle-code-editor.is-active:hover,
+#saving-form #toggle-tree-view.is-active:hover {
+    color: var(--color2);
+    background-color: rgba(255,255,255,0.05);
+}
  
 
 #saving-form a i,#saving-form button i {font-size: 20px;display: block;margin-bottom: 2px;}
@@ -376,62 +453,1485 @@ body.lc-bottom-editor-is-shown #previewiframe {      }
     box-sizing: border-box;
     transition: opacity .2s ease-out;
 }
+#lc-code-editor-window.lc-code-editor-managed-window {
+    position: fixed;
+    z-index: 10000;
+    min-width: 0;
+    min-height: 0;
+    overflow: visible;
+    border: 1px solid var(--lc-editor-border-strong);
+    background: var(--lc-editor-surface);
+    container-name: lc-code-editor-window;
+    container-type: size;
+}
+:is(#lc-code-editor-window, #lc-code-editor-winbox) {
+    --lc-editor-surface: #202332;
+    --lc-editor-chrome: #11131d;
+    --lc-editor-popover: #1b1e2b;
+    --lc-editor-control: #0b0d15;
+    --lc-editor-border: rgba(255,255,255,0.16);
+    --lc-editor-border-strong: #4c5266;
+    --lc-editor-text: #f4f7fb;
+    --lc-editor-text-muted: rgba(244,247,251,0.76);
+    --lc-editor-focus: var(--color1);
+    --lc-editor-menubar-height: 40px;
+    --lc-editor-scrollbar-track: #10121b;
+    --lc-editor-scrollbar-thumb: #555d72;
+    --lc-editor-scrollbar-thumb-hover: var(--color2);
+    scrollbar-color: var(--lc-editor-scrollbar-thumb) var(--lc-editor-scrollbar-track);
+    scrollbar-width: thin;
+}
+:is(#lc-code-editor-window, #lc-code-editor-winbox) * {
+    scrollbar-color: var(--lc-editor-scrollbar-thumb) var(--lc-editor-scrollbar-track);
+    scrollbar-width: thin;
+}
+:is(#lc-code-editor-window, #lc-code-editor-winbox) ::selection {
+    color: #fff;
+    background: rgba(38,198,218,0.38);
+}
+:is(#lc-code-editor-window, #lc-code-editor-winbox) *::-webkit-scrollbar {
+    width: 9px;
+    height: 9px;
+}
+:is(#lc-code-editor-window, #lc-code-editor-winbox) *::-webkit-scrollbar-track {
+    background: var(--lc-editor-scrollbar-track);
+}
+:is(#lc-code-editor-window, #lc-code-editor-winbox) *::-webkit-scrollbar-thumb {
+    min-width: 28px;
+    min-height: 28px;
+    border: 2px solid var(--lc-editor-scrollbar-track);
+    border-radius: 999px;
+    background: var(--lc-editor-scrollbar-thumb);
+    background-clip: padding-box;
+}
+:is(#lc-code-editor-window, #lc-code-editor-winbox) *::-webkit-scrollbar-thumb:hover {
+    background: var(--lc-editor-scrollbar-thumb-hover);
+    background-clip: padding-box;
+}
+:is(#lc-code-editor-window, #lc-code-editor-winbox) *::-webkit-scrollbar-corner {
+    background: var(--lc-editor-scrollbar-track);
+}
+body.lc-code-editor-floating-mode #lc-code-editor-window {
+    border-radius: 9px;
+    box-shadow: 0 24px 64px rgba(5, 6, 12, .5), 0 6px 18px rgba(5, 6, 12, .34);
+}
+body.lc-code-editor-floating-mode #lc-code-editor-window .lc-editor-menubar {
+    padding-right: 0;
+    cursor: move;
+    touch-action: none;
+}
+/* Reserve a drag surface even when the toolbar controls fill the row. */
+body.lc-code-editor-floating-mode #lc-code-editor-window .lc-editor-menubar::before {
+    content: "";
+    flex: 0 0 18px;
+    align-self: stretch;
+}
+body.lc-code-editor-split-v-mode #lc-code-editor-window .lc-editor-menubar {
+    cursor: ns-resize;
+    touch-action: none;
+}
+body.lc-code-editor-split-mode #lc-code-editor-window .lc-editor-menubar {
+    cursor: ew-resize;
+    touch-action: none;
+}
+.lc-code-editor-drag-handle {
+    position: relative;
+    z-index: 10003;
+    display: inline-flex;
+    flex: 0 0 24px;
+    align-items: center;
+    justify-content: center;
+    align-self: stretch;
+    margin: 0 0 0 -6px;
+    padding: 0;
+    border: 0;
+    color: rgba(255, 255, 255, .55);
+    background: transparent;
+    cursor: move;
+    pointer-events: auto;
+    touch-action: none;
+}
+.lc-code-editor-drag-handle:hover,
+.lc-code-editor-drag-handle:focus-visible {
+    color: #fff;
+    background: rgba(255, 255, 255, .08);
+    outline: 2px solid var(--lc-editor-focus);
+    outline-offset: -2px;
+}
+.lc-code-editor-drag-handle[hidden] {display: none}
+.lc-code-editor-sash {
+    position: absolute;
+    z-index: 10002;
+    display: none;
+    touch-action: none;
+}
+body.lc-code-editor-split-mode .lc-code-editor-sash-split {
+    display: block;
+    top: 0;
+    right: -4px;
+    bottom: 0;
+    width: 8px;
+    cursor: ew-resize;
+}
+body.lc-code-editor-split-v-mode .lc-code-editor-sash-split {
+    display: block;
+    top: -4px;
+    right: 0;
+    left: 0;
+    height: 8px;
+    cursor: ns-resize;
+}
+body.lc-code-editor-floating-mode .lc-code-editor-sash {display: block}
+body.lc-code-editor-floating-mode .lc-code-editor-sash-split {display: none}
+.lc-code-editor-sash-n,
+.lc-code-editor-sash-s {right: 8px; left: 8px; height: 8px; cursor: ns-resize}
+.lc-code-editor-sash-e,
+.lc-code-editor-sash-w {top: 8px; bottom: 8px; width: 8px; cursor: ew-resize}
+.lc-code-editor-sash-n {top: -4px}
+.lc-code-editor-sash-s {bottom: -4px}
+.lc-code-editor-sash-e {right: -4px}
+.lc-code-editor-sash-w {left: -4px}
+.lc-code-editor-sash-ne,
+.lc-code-editor-sash-nw,
+.lc-code-editor-sash-se,
+.lc-code-editor-sash-sw {width: 12px; height: 12px}
+.lc-code-editor-sash-ne {top: -4px; right: -4px; cursor: nesw-resize}
+.lc-code-editor-sash-nw {top: -4px; left: -4px; cursor: nwse-resize}
+.lc-code-editor-sash-se {right: -4px; bottom: -4px; cursor: nwse-resize}
+.lc-code-editor-sash-sw {bottom: -4px; left: -4px; cursor: nesw-resize}
+.lc-code-editor-sash:focus-visible {
+    outline: 2px solid var(--color1);
+    outline-offset: -2px;
+}
+body.lc-code-editor-interacting,
+body.lc-code-editor-interacting * {
+    user-select: none !important;
+}
+body.lc-code-editor-interacting #previewiframe {
+    pointer-events: none !important;
+}
+body.lc-code-editor-interacting #previewiframe-wrap {
+    transition: none !important;
+}
 .lc-opacity-light{opacity: 0.6;}
+#lc-code-editor-winbox.lc-opacity-light {
+    opacity: 0.6;
+}
 .lc-editor-window-maximized {height: 100vh !important; /* :calc(100% - var(--maintoolbar-height) - 8px) !important; */}
-.lc-editor-window-sided {height: calc(100% - var(--maintoolbar-height) - 10px) !important;width:40vw !important}
+.lc-editor-window-split {height: calc(100% - var(--maintoolbar-height) - 10px) !important;width:40vw !important}
 
-/* hide code editor theme and size tools when editor is on a side */
-#lc-code-editor-window.lc-editor-window-sided .lc-editor-menubar-tools > span {display: none}
+/* hide code editor theme and size tools when editor is split */
+body.lc-code-editor-split-mode .lc-editor-menubar-tools > .lc-editor-settings {display: none}
 
-#lc-code-editor-window:hover {opacity: 1}
-#lc-html-editor,#lc-css-editor,#lc-js-editor {left:0;right: 0;height: calc(100% - 35px);font-size: 13px;}
+#lc-code-editor-window:hover,
+#lc-code-editor-winbox:hover {opacity: 1}
+#lc-code-editor-winbox {
+    container-name: lc-code-editor-window;
+    container-type: size;
+}
+#lc-code-editor-window.lc-editor-window-winbox {
+    position: relative;
+    z-index: auto;
+    left: auto;
+    bottom: auto;
+    width: 100%;
+    height: 100%;
+    border: 0;
+    container-type: inline-size;
+}
+#lc-html-editor,#lc-css-editor,#lc-js-editor {
+    left: 0;
+    right: 0;
+    height: 100%;
+    border-top: 8px solid transparent;
+    box-sizing: border-box;
+    font-size: 13px;
+}
+#lc-code-editor-window:not(.lc-editor-window-winbox) #lc-html-editor {height: calc(100% - var(--lc-editor-menubar-height) - 28px);}
+#lc-code-editor-window:not(.lc-editor-window-winbox) #lc-css-editor,
+#lc-code-editor-window:not(.lc-editor-window-winbox) #lc-js-editor {height: calc(100% - var(--lc-editor-menubar-height));}
+#lc-code-editor-window.lc-editor-window-winbox #lc-html-editor {height: calc(100% - 28px);}
+#lc-code-editor-window.lc-editor-window-winbox #lc-css-editor,
+#lc-code-editor-window.lc-editor-window-winbox #lc-js-editor {height: 100%;}
+
+:is(#lc-code-editor-window, #lc-code-editor-winbox) .ace_gutter {
+    box-shadow: inset -1px 0 rgba(255,255,255,0.12);
+}
+
+:is(#lc-code-editor-window, #lc-code-editor-winbox) .ace_print-margin {
+    background: rgba(255,255,255,0.08);
+}
+
+.lc-editor-breadcrumb {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 5;
+    display: flex;
+    align-items: center;
+    height: 28px;
+    padding: 0 10px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    box-sizing: border-box;
+    border-top: 1px solid var(--lc-editor-border);
+    background: var(--lc-editor-chrome);
+    color: var(--lc-editor-text-muted);
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: 11px;
+    line-height: 1;
+    scrollbar-width: thin;
+    white-space: nowrap;
+}
+
+.lc-editor-breadcrumb-item {
+    flex: 0 0 auto;
+    padding: 4px 5px;
+    border: 0;
+    border-radius: 3px;
+    color: rgba(255,255,255,0.72);
+    background: transparent;
+    font: inherit;
+    cursor: pointer;
+}
+
+.lc-editor-breadcrumb-item:hover,
+.lc-editor-breadcrumb-item:focus-visible {
+    color: var(--lc-editor-chrome);
+    background: var(--color1);
+    outline: 2px solid var(--lc-editor-focus);
+    outline-offset: -2px;
+}
+
+.lc-editor-breadcrumb-item[aria-current="page"] {
+    color: var(--color1);
+    background: rgba(38,198,218,0.08);
+    cursor: default;
+}
+
+.lc-editor-breadcrumb-separator {
+    flex: 0 0 auto;
+    color: rgba(255,255,255,0.28);
+    font-size: 0;
+}
+
+.lc-editor-breadcrumb-separator::before {
+    content: "\f105";
+    font-family: FontAwesome;
+    font-size: 10px;
+}
 
 /* CODE EDITOR MENUBAR */
-.lc-editor-menubar {width:100%; font-size: 12px; background: var(--color-interface-bg-dark);color: var(--color-lightgrey);padding:11px 0;user-select: none;}
+.lc-editor-menubar {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    height: var(--lc-editor-menubar-height);
+    min-height: var(--lc-editor-menubar-height);
+    padding: 0 0 0 8px;
+    box-sizing: border-box;
+    font-size: 11px;
+    background: var(--lc-editor-chrome);
+    color: var(--color-lightgrey);
+    user-select: none;
+    border-bottom: 1px solid rgba(255,255,255,0.2);
+    box-shadow: 0 2px 8px rgba(5,6,12,0.2);
+    container-name: lc-code-editor-toolbar;
+    container-type: inline-size;
+}
 
-.lc-editor-menubar-draghandle {  position: absolute; left: 250px;  top: 0px;    right: 241px;    bottom:0 }
-#lc-code-editor-window:not(.lc-editor-window-sided):not(.lc-editor-window-maximized) .lc-editor-menubar-draghandle:hover{cursor: ns-resize}
+body.lc-code-editor-floating-mode #lc-code-editor-window .lc-editor-menubar {
+    border-radius: 8px 8px 0 0;
+}
 
-.lc-editor-menubar > span {margin-left: 10px;color:  var(--color-lightgrey);font-size: 15px; }
+body.lc-code-editor-floating-mode #lc-code-editor-window .lc-editor-breadcrumb {
+    border-radius: 0 0 8px 8px;
+}
 
- 
-.lc-editor-menubar-tools select {
-    width: 90px;
-    line-height: 1.5;
+#lc-code-editor-winbox .wb-header {
+    position: relative;
+    z-index: 1000 !important;
+    display: flex;
+    align-items: center;
+    left: 0 !important;
+    right: 0 !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    box-sizing: border-box;
+    cursor: move;
+    overflow: visible !important;
+    container-name: lc-code-editor-toolbar;
+    container-type: inline-size;
+}
+
+body.lc-code-editor-split-mode #lc-code-editor-winbox .wb-header,
+body.lc-code-editor-split-mode #lc-code-editor-winbox .wb-title,
+body.lc-code-editor-split-mode #lc-code-editor-winbox .lc-editor-menubar {
+    cursor: default !important;
+}
+
+#lc-code-editor-winbox .wb-header .lc-editor-menubar {
+    position: relative;
+    z-index: 1;
+    flex: 1 1 auto;
+    min-width: 0;
+    height: 100%;
+    min-height: 0;
+    padding-right: 0;
+    background: transparent;
+    border-bottom: 0;
+    pointer-events: none;
+    overflow: visible !important;
+}
+
+#lc-code-editor-winbox .lc-editor-menubar-tools,
+#lc-code-editor-winbox .lc-editor-resources,
+#lc-code-editor-winbox .lc-editor-view-options {
+    overflow: visible !important;
+}
+
+#lc-code-editor-winbox .wb-header .lc-editor-menubar a,
+#lc-code-editor-winbox .wb-header .lc-editor-menubar button,
+#lc-code-editor-winbox .wb-header .lc-editor-menubar input,
+#lc-code-editor-winbox .wb-header .lc-editor-menubar select {
+    pointer-events: auto;
+}
+
+.lc-editor-menubar > span {
+    color: var(--color-lightgrey);
+    font-size: 15px;
+}
+
+.lc-editor-menubar-tools {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    min-width: 0;
+    gap: 7px;
+    margin-left: auto;
+    white-space: nowrap;
+}
+
+#lc-code-editor-winbox .lc-editor-menubar-tools {
+    padding-right: 0;
+}
+
+.lc-editor-menubar-tools > span {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: #f4f7fb;
+    font-size: 12px;
+    font-weight: 700;
+    text-shadow: none;
+}
+
+.lc-editor-view-options {
+    position: relative;
+}
+
+.lc-editor-view-options-trigger {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    height: 26px;
+    box-sizing: border-box;
+    padding: 0 7px;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    color: rgba(244,247,251,0.76);
+    background: transparent;
+    cursor: pointer;
+    font-size: 10px;
+    font-weight: 600;
+    line-height: 1;
+    text-transform: uppercase;
+    transition: color 0.15s ease, background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.lc-editor-view-options-trigger:hover,
+.lc-editor-view-options.is-open .lc-editor-view-options-trigger {
+    color: #f4f7fb;
+    background: rgba(255,255,255,0.08);
+    border-color: rgba(255,255,255,0.12);
+}
+
+.lc-editor-view-options-trigger:focus-visible {
+    outline: 2px solid var(--lc-editor-focus);
+    outline-offset: 1px;
+}
+
+.lc-editor-view-options-caret {
+    transition: transform 0.15s ease;
+}
+
+.lc-editor-view-options.is-open .lc-editor-view-options-caret {
+    transform: rotate(180deg);
+}
+
+.lc-editor-resources {
+    position: relative;
+}
+
+.lc-editor-resources-trigger {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    height: 26px;
+    box-sizing: border-box;
+    padding: 0 7px;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    color: rgba(244,247,251,0.76);
+    background: transparent;
+    cursor: pointer;
+    font-size: 10px;
+    font-weight: 600;
+    line-height: 1;
+    text-transform: uppercase;
+    transition: color 0.15s ease, background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.lc-editor-resources-trigger:hover,
+.lc-editor-resources.is-open .lc-editor-resources-trigger {
+    color: #f4f7fb;
+    background: rgba(255,255,255,0.08);
+    border-color: rgba(255,255,255,0.12);
+}
+
+.lc-editor-resources-trigger:focus-visible {
+    outline: 2px solid var(--lc-editor-focus);
+    outline-offset: 1px;
+}
+
+.lc-editor-resources-caret {
+    transition: transform 0.15s ease;
+}
+
+.lc-editor-resources.is-open .lc-editor-resources-caret {
+    transform: rotate(180deg);
+}
+
+.lc-editor-view-options-panel {
+    position: absolute;
+    top: calc(100% + 7px);
+    right: 0;
+    z-index: 100;
+    display: grid;
+    gap: 12px;
+    width: min(320px, calc(100cqw - 20px));
+    padding: 18px;
+    box-sizing: border-box;
+    border: 1px solid var(--lc-editor-border-strong);
+    border-radius: 8px;
+    color: #f4f7fb;
+    background: var(--lc-editor-popover);
+    box-shadow: 0 18px 42px rgba(7,8,14,0.48), 0 3px 10px rgba(7,8,14,0.28);
+    text-shadow: none;
+}
+
+#lc-code-editor-winbox .lc-editor-view-options-panel {
+    width: min(320px, calc(100cqw - 20px));
+}
+
+.lc-editor-view-options-panel[hidden] {
+    display: none;
+}
+
+.lc-editor-view-options-panel::before {
+    content: "";
+    position: absolute;
+    top: -5px;
+    right: 18px;
+    width: 9px;
+    height: 9px;
+    border-top: 1px solid var(--lc-editor-border-strong);
+    border-left: 1px solid var(--lc-editor-border-strong);
+    background: var(--lc-editor-popover);
+    transform: rotate(45deg);
+}
+
+.lc-editor-view-options-panel .lc-editor-settings {
+    display: grid;
+    grid-template-columns: 110px minmax(0, 1fr);
+    align-items: center;
+    gap: 14px;
+    color: var(--lc-editor-text);
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.lc-editor-popover-header {
+    display: grid;
+    gap: 3px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--lc-editor-border);
+}
+
+.lc-editor-popover-heading {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.lc-editor-popover-heading > .fa {
+    width: 16px;
+    color: var(--color2);
+    font-size: 14px;
+    text-align: center;
+}
+
+.lc-editor-popover-header strong {
+    color: var(--lc-editor-text);
+    font-size: 14px;
+    line-height: 1.2;
+}
+
+.lc-editor-popover-header small {
+    color: var(--lc-editor-text-muted);
+    font-size: 11px;
+    font-weight: 500;
+    line-height: 1.4;
+}
+
+.lc-editor-setting-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.lc-editor-setting-label > .fa {
+    width: 16px;
     color: var(--color1);
-    background: #1e2032;
-    border: 1px solid var(--color-accents);
-    border-radius: 2px;
+    font-size: 12px;
+    text-align: center;
+}
+
+.lc-editor-view-options-panel select {
+    width: 100%;
+}
+
+.lc-editor-view-options-panel #lc-editor-theme,
+.lc-editor-view-options-panel #lc-editor-fontsize {
+    height: 34px;
+    font-size: 12px;
+}
+
+.lc-editor-view-options-panel #lc-editor-fontsize {
+    width: 78px;
+    justify-self: end;
+}
+
+.lc-editor-view-options-panel #lc-editor-transparency {
+    justify-self: end;
+    position: relative;
+    width: 36px;
+    height: 20px;
+    margin: 0;
+    appearance: none;
+    border: 1px solid rgba(255,255,255,0.24);
+    border-radius: 999px;
+    background: var(--lc-editor-control);
+    cursor: pointer;
+    transition: background-color 0.16s ease, border-color 0.16s ease;
+}
+
+.lc-editor-view-options-panel #lc-editor-transparency::before {
+    content: "";
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: var(--lc-editor-text-muted);
+    transition: transform 0.18s cubic-bezier(0.2, 0.9, 0.3, 1), background-color 0.16s ease;
+}
+
+.lc-editor-view-options-panel #lc-editor-transparency:checked {
+    border-color: var(--color1);
+    background: var(--color1);
+}
+
+.lc-editor-view-options-panel #lc-editor-transparency:checked::before {
+    background: var(--lc-editor-chrome);
+    transform: translateX(16px);
+}
+
+.lc-editor-view-options-panel #lc-editor-transparency:focus-visible {
+    outline: 2px solid var(--lc-editor-focus);
+    outline-offset: 2px;
+}
+
+.lc-editor-resources-panel {
+    position: absolute;
+    top: calc(100% + 7px);
+    right: 0;
+    z-index: 100;
+    display: grid;
+    grid-auto-rows: max-content;
+    gap: 15px;
+    width: min(360px, calc(100cqw - 20px));
+    max-height: calc(100cqh - var(--lc-editor-menubar-height) - 18px);
+    padding: 18px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
+    box-sizing: border-box;
+    border: 1px solid var(--lc-editor-border-strong);
+    border-radius: 8px;
+    color: #f4f7fb;
+    background: var(--lc-editor-popover);
+    box-shadow: 0 18px 42px rgba(7,8,14,0.48), 0 3px 10px rgba(7,8,14,0.28);
+    text-shadow: none;
+}
+
+.lc-editor-resources-panel.is-above {
+    top: auto;
+    bottom: calc(100% + 7px);
+}
+
+#lc-code-editor-winbox .lc-editor-resources-panel {
+    max-height: calc(100cqh - 46px);
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
+}
+
+@container lc-code-editor-window (min-width: 640px) {
+    .lc-editor-resources-panel {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        align-items: start;
+        width: min(760px, calc(100cqw - 24px));
+    }
+
+    .lc-editor-resources-header {
+        grid-column: 1 / -1;
+    }
+}
+
+@container lc-code-editor-window (max-height: 420px) {
+    .lc-editor-resources-panel {
+        gap: 8px;
+        padding: 10px;
+    }
+
+    .lc-editor-resources-header {
+        padding-bottom: 7px;
+    }
+
+    .lc-editor-menubar-tools .lc-editor-resources-panel .lc-editor-resources-group a {
+        padding-block: 4px;
+    }
+}
+
+@container lc-code-editor-window (max-height: 300px) {
+    .lc-editor-resources-header small {
+        display: none;
+    }
+}
+
+.lc-editor-resources-panel[hidden] {
+    display: none;
+}
+
+.lc-editor-resources-panel::before {
+    content: "";
+    position: absolute;
+    top: -5px;
+    right: 18px;
+    width: 9px;
+    height: 9px;
+    border-top: 1px solid var(--lc-editor-border-strong);
+    border-left: 1px solid var(--lc-editor-border-strong);
+    background: var(--lc-editor-popover);
+    transform: rotate(45deg);
+}
+
+.lc-editor-resources-panel.is-above::before {
+    top: auto;
+    bottom: -5px;
+    transform: rotate(225deg);
+}
+
+.lc-editor-resources-header,
+.lc-editor-resources-group {
+    display: grid;
+}
+
+.lc-editor-resources-header {
+    gap: 3px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid rgba(255,255,255,0.12);
+}
+
+.lc-editor-resources-header strong {
+    color: #fff;
+    font-size: 14px;
+}
+
+.lc-editor-resources-header .lc-editor-popover-heading > .fa {
+    color: var(--color-yellow);
+}
+
+.lc-editor-resources-header small {
+    color: var(--lc-editor-text-muted);
+    font-size: 11px;
+    font-weight: 500;
+    line-height: 1.4;
+    white-space: normal;
+}
+
+.lc-editor-resources-group {
+    gap: 2px;
+}
+
+.lc-editor-resources-group > strong {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    margin-bottom: 5px;
+    color: var(--color1);
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.lc-editor-resources-group > strong .fa {
+    width: 12px;
+    color: var(--color2);
+    font-size: 11px;
+    text-align: center;
+}
+
+.lc-editor-menubar-tools .lc-editor-resources-group a {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 8px 9px;
+    border-radius: 4px;
+    color: #f4f7fb;
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 1.25;
+    white-space: normal;
+}
+
+.lc-editor-menubar-tools .lc-editor-resources-group a::after {
+    content: "\f08e";
+    flex: 0 0 auto;
+    color: rgba(255,255,255,0.42);
+    font-family: FontAwesome;
+    font-size: 9px;
+}
+
+.lc-editor-menubar-tools .lc-editor-resources-group a:hover {
+    color: #151724;
+    background: var(--color1);
+}
+
+.lc-editor-menubar-tools .lc-editor-resources-group a:hover::after {
+    color: #151724;
+}
+
+.lc-editor-menubar-tools > .lc-editor-window-actions {
+    margin-right: 4px;
+    padding-right: 10px;
+    border-right: 1px solid rgba(255,255,255,0.22);
+}
+
+.lc-editor-menubar-tools select,
+.lc-editor-menubar-tools input[type=number] {
+    height: 34px;
+    line-height: 1.35;
+    color: var(--lc-editor-text);
+    background: var(--lc-editor-control);
+    border: 1px solid rgba(255,255,255,0.2);
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+#lc-code-editor-winbox .lc-editor-menubar-tools select {
+    background: var(--lc-editor-control);
+    color: var(--lc-editor-text);
+}
+
+.lc-editor-menubar-tools select option,
+.lc-editor-menubar-tools select optgroup {
+    color: #111;
+    background: #fff;
+}
+
+.lc-editor-menubar-tools select {
+    width: 128px;
+    padding: 0 28px 0 9px;
+    appearance: none;
+    background-image: linear-gradient(45deg, transparent 50%, rgba(255,255,255,0.72) 50%), linear-gradient(135deg, rgba(255,255,255,0.72) 50%, transparent 50%);
+    background-position: calc(100% - 13px) 14px, calc(100% - 9px) 14px;
+    background-repeat: no-repeat;
+    background-size: 4px 4px, 4px 4px;
+    box-shadow: none;
+}
+
+#lc-editor-fontsize {
+    width: 58px;
+}
+
+.lc-editor-menubar-tools select:hover {
+    background-color: #191c29;
+    border-color: rgba(255,255,255,0.36);
+}
+
+.lc-editor-menubar-tools select:focus {
+    outline: 0;
+    border-color: var(--lc-editor-focus);
+    box-shadow: 0 0 0 2px rgba(38,198,218,0.22);
+}
+
+.lc-editor-menubar-tools input[type=number]:focus-visible {
+    outline: 0;
+    border-color: var(--lc-editor-focus);
+    box-shadow: 0 0 0 2px rgba(38,198,218,0.22);
 }
 
 .lc-editor-menubar-tools input[type=number] {
-    line-height: 1.5;
-    color: var(--color1);
-    background: #1e2032;
-    border: 1px solid var(--color-accents);
-    border-radius: 2px;
+    width: 48px;
 }
 
-.lc-editor-menubar-tools {position: absolute;right:  15px;top:8px;}
-.lc-editor-menubar-tools a {color:  var(--color-lightgrey);  font-size: 11px;margin-left:20px; text-decoration: none;transition: all 0.5s ease-in-out}
-.lc-editor-menubar-tools a .fa {font-size: 15px;margin-left: 3px}
+.lc-editor-menubar-tools a {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    color: var(--color-lightgrey);
+    font-size: 11px;
+    text-decoration: none;
+    transition: color 0.2s ease-in-out;
+}
+
+.lc-editor-menubar-tools a .fa {font-size: 15px;}
 .lc-editor-menubar-tools a .fa-close {font-size: 18px;}
 .lc-editor-menubar-tools a:hover {color: var(--color1); }
-.lc-editor-menubar-tools select {width: 90px;} 
 
- /* CODE TABBER AND BUTTONS NEARBY - "PARENT" */
- .code-tabber {display: inline-block}
- .code-tabber a, .after-tabber-extras a { background: #333; color:#AFAFAF; padding: 5px 15px; text-align: center;text-decoration: none}
- .code-tabber a:hover {background-color:var(--color-accent)}
- .code-tabber a span {font-family: monospace;}
- .code-tabber a.active, .after-tabber-extras a.active { background: var(--color-interface-bg-dark); color:var(--color1);padding: 5px 15px; text-align: center;text-decoration: none}
- 
- /* Style the JS active tab */
- .code-tabber a#js-tab.active {background-color: var(--color-yellow); color:black;}
+.lc-editor-window-actions {
+    gap: 7px;
+}
 
- .after-tabber-extras {        position: absolute;    left: 280px;    z-index: 9999;    top: 11px; }
- .after-tabber-extras a:hover {color:var(--color1);}
- .after-tabber-extras a:focus {color:#333;background:#adadad}
+.lc-editor-layout-selector {
+    display: inline-flex;
+    align-items: center;
+    gap: 1px;
+    padding: 2px;
+    border: 1px solid rgba(255,255,255,0.24);
+    border-radius: 6px;
+    background: var(--lc-editor-control);
+    box-shadow: inset 0 1px 2px rgba(0,0,0,0.16);
+}
+
+.lc-editor-layout-label {
+    padding: 0;
+    color: rgba(255,255,255,0.82);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    line-height: 1;
+    text-shadow: none;
+    text-transform: uppercase;
+}
+
+.lc-editor-window-utility-actions {
+    display: inline-flex;
+    flex: 0 0 auto;
+    align-self: stretch;
+    align-items: center;
+    margin-left: 4px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+}
+
+.lc-editor-window-actions .lc-editor-layout-selector .lc-editor-layout-choice,
+#lc-code-editor-winbox .lc-editor-window-actions .lc-editor-layout-selector .lc-editor-layout-choice {
+    position: relative;
+    width: 30px;
+    height: 24px;
+    padding: 0;
+    border-radius: 4px;
+    color: rgba(255,255,255,0.62);
+    background: transparent;
+    font-size: 10px;
+    letter-spacing: 0.025em;
+    transform: translateY(0) scale(1);
+    transition: color 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+}
+
+.lc-editor-layout-choice[data-tooltip]::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    top: calc(100% + 10px);
+    left: 50%;
+    z-index: 120;
+    width: max-content;
+    max-width: 230px;
+    padding: 9px 12px;
+    border: 1px solid var(--lc-editor-border-strong);
+    border-radius: 6px;
+    color: #fff;
+    background: var(--lc-editor-popover);
+    box-shadow: 0 10px 26px rgba(7,8,14,0.46);
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.01em;
+    line-height: 1.3;
+    opacity: 0;
+    pointer-events: none;
+    text-transform: none;
+    transform: translate(-50%, -3px) scale(0.96);
+    transform-origin: 50% 0;
+    transition: opacity 0.1s ease, transform 0.14s cubic-bezier(0.16, 1, 0.3, 1);
+    visibility: hidden;
+    white-space: nowrap;
+}
+
+.lc-editor-layout-choice[data-tooltip]::before {
+    content: "";
+    position: absolute;
+    top: calc(100% + 5px);
+    left: 50%;
+    z-index: 121;
+    width: 9px;
+    height: 9px;
+    border-top: 1px solid var(--lc-editor-border-strong);
+    border-left: 1px solid var(--lc-editor-border-strong);
+    background: var(--lc-editor-popover);
+    opacity: 0;
+    pointer-events: none;
+    transform: translateX(-50%) rotate(45deg) scale(0.8);
+    transition: opacity 0.1s ease, transform 0.12s ease;
+    visibility: hidden;
+}
+
+.lc-editor-layout-choice[data-tooltip]:hover::after,
+.lc-editor-layout-choice[data-tooltip]:focus-visible::after {
+    opacity: 1;
+    transform: translate(-50%, 0) scale(1);
+    visibility: visible;
+}
+
+.lc-editor-layout-choice[data-tooltip]:hover::before,
+.lc-editor-layout-choice[data-tooltip]:focus-visible::before {
+    opacity: 1;
+    transform: translateX(-50%) rotate(45deg) scale(1);
+    visibility: visible;
+}
+
+.lc-editor-layout-choice + .lc-editor-layout-choice {
+    margin-left: 0;
+}
+
+.lc-editor-window-actions .lc-editor-layout-selector .lc-editor-layout-choice .fa {
+    width: auto;
+    color: inherit;
+    font-size: 11px;
+}
+
+.lc-editor-window-actions .lc-editor-layout-choice[data-layout="custom"] .fa {
+    font-size: 12px;
+}
+
+.lc-editor-split-icon {
+    position: relative;
+    display: block;
+    width: 18px;
+    height: 13px;
+    overflow: hidden;
+    box-sizing: border-box;
+    border: 1px solid currentColor;
+    border-radius: 2px;
+    color: inherit;
+}
+
+.lc-editor-split-icon::before,
+.lc-editor-split-icon::after {
+    content: "";
+    position: absolute;
+    background: currentColor;
+}
+
+.lc-editor-split-icon::before {
+    opacity: 0.38;
+}
+
+.lc-editor-split-icon-v::before {
+    right: 0;
+    bottom: 0;
+    left: 0;
+    height: 4px;
+}
+
+.lc-editor-split-icon-v::after {
+    right: 0;
+    bottom: 4px;
+    left: 0;
+    height: 1px;
+}
+
+.lc-editor-split-icon-h::before {
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: 5px;
+}
+
+.lc-editor-split-icon-h::after {
+    top: 0;
+    bottom: 0;
+    left: 5px;
+    width: 1px;
+}
+
+.lc-editor-window-actions .lc-editor-layout-selector .lc-editor-layout-choice:hover:not(.is-active) {
+    color: #fff;
+    background: rgba(255,255,255,0.08);
+    box-shadow: none;
+    transform: none;
+}
+
+.lc-editor-window-actions .lc-editor-layout-selector .lc-editor-layout-choice.is-active,
+#lc-code-editor-winbox .lc-editor-window-actions .lc-editor-layout-selector .lc-editor-layout-choice.is-active {
+    color: #151724;
+    background: var(--color2);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.28), inset 0 1px 0 rgba(255,255,255,0.3);
+    transform: none;
+}
+
+.lc-editor-window-actions button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    height: 26px;
+    border: 0;
+    padding: 0 8px;
+    color: var(--color-lightgrey);
+    background: transparent;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 1;
+    text-transform: uppercase;
+}
+
+#lc-code-editor-winbox .lc-editor-window-actions button {
+    color: #fff;
+}
+
+#lc-code-editor-winbox .lc-editor-window-actions button .fa {
+    color: inherit;
+}
+
+.lc-editor-window-utility-actions button,
+#lc-code-editor-winbox .lc-editor-window-utility-actions button {
+    cursor: pointer;
+    height: 26px;
+    box-sizing: border-box;
+    padding: 0 7px;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    color: rgba(244,247,251,0.76);
+    background: transparent;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: normal;
+    line-height: 1;
+    text-transform: uppercase;
+    text-shadow: none;
+    transition: color 0.15s ease, background-color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.lc-editor-view-options-trigger > .fa-sliders,
+.lc-editor-resources-trigger > .fa-lightbulb-o,
+.lc-editor-window-utility-actions button .fa {
+    width: 12px;
+    font-size: 12px;
+    text-align: center;
+}
+
+.lc-editor-window-utility-actions .lc-editor-repaint-preview {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+}
+
+.lc-editor-repaint-preview[data-tooltip]::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    top: calc(100% + 10px);
+    right: 0;
+    z-index: 120;
+    width: min(260px, calc(100cqw - 16px));
+    padding: 9px 12px;
+    box-sizing: border-box;
+    border: 1px solid var(--lc-editor-border-strong);
+    border-radius: 8px;
+    color: #fff;
+    background: var(--lc-editor-popover);
+    box-shadow: 0 10px 26px rgba(7,8,14,0.46);
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.01em;
+    line-height: 1.35;
+    opacity: 0;
+    pointer-events: none;
+    text-align: left;
+    text-shadow: none;
+    text-transform: none;
+    transform: translateY(-3px) scale(0.96);
+    transform-origin: 100% 0;
+    transition: opacity 0.1s ease, transform 0.14s cubic-bezier(0.16, 1, 0.3, 1);
+    visibility: hidden;
+    white-space: normal;
+}
+
+.lc-editor-repaint-preview[data-tooltip]::before {
+    content: "";
+    position: absolute;
+    top: calc(100% + 5px);
+    right: 14px;
+    z-index: 121;
+    width: 9px;
+    height: 9px;
+    border-top: 1px solid var(--lc-editor-border-strong);
+    border-left: 1px solid var(--lc-editor-border-strong);
+    background: var(--lc-editor-popover);
+    opacity: 0;
+    pointer-events: none;
+    transform: rotate(45deg) scale(0.8);
+    transition: opacity 0.1s ease, transform 0.12s ease;
+    visibility: hidden;
+}
+
+.lc-editor-repaint-preview[data-tooltip]:hover::after,
+.lc-editor-repaint-preview[data-tooltip]:focus-visible::after {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    visibility: visible;
+}
+
+.lc-editor-repaint-preview[data-tooltip]:hover::before,
+.lc-editor-repaint-preview[data-tooltip]:focus-visible::before {
+    opacity: 1;
+    transform: rotate(45deg) scale(1);
+    visibility: visible;
+}
+
+.lc-editor-window-utility-actions .lc-editor-repaint-preview:hover,
+#lc-code-editor-winbox .lc-editor-window-utility-actions .lc-editor-repaint-preview:hover {
+    color: var(--color2);
+    border-color: rgba(255,255,255,0.12);
+    background: rgba(255,255,255,0.08);
+    text-shadow: none;
+}
+
+.lc-editor-window-utility-actions button:focus-visible,
+.lc-editor-window-actions .lc-editor-layout-choice:focus-visible {
+    outline: 2px solid var(--color2);
+    outline-offset: 1px;
+}
+
+.lc-editor-window-utility-actions .lc-editor-close-custom,
+#lc-code-editor-winbox .lc-editor-window-utility-actions .lc-editor-close-custom {
+    width: 38px;
+    height: 100%;
+    min-height: 30px;
+    padding: 0;
+    border-color: transparent;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+    text-shadow: none;
+}
+
+.lc-editor-window-utility-actions .lc-editor-close-custom:hover,
+#lc-code-editor-winbox .lc-editor-window-utility-actions .lc-editor-close-custom:hover {
+    color: #fff;
+    border-color: transparent;
+    background: #c52d4a;
+    box-shadow: none;
+}
+
+.lc-editor-window-utility-actions .lc-editor-close-custom .fa {
+    width: auto;
+    font-size: 18px;
+}
+
+@container lc-code-editor-toolbar (max-width: 840px) {
+    .lc-editor-layout-label,
+    .lc-editor-trigger-label,
+    .lc-editor-view-options-caret,
+    .lc-editor-resources-caret,
+    .lc-editor-repaint-label {
+        display: none;
+    }
+
+    .lc-editor-menubar-tools {
+        gap: 5px;
+    }
+
+    .lc-editor-menubar-tools > .lc-editor-window-actions {
+        gap: 4px;
+        margin-right: 0;
+        padding-right: 7px;
+    }
+
+    .lc-editor-view-options-trigger,
+    .lc-editor-resources-trigger,
+    .lc-editor-window-utility-actions .lc-editor-repaint-preview {
+        width: 28px;
+        padding: 0;
+        justify-content: center;
+    }
+}
+
+@container lc-code-editor-toolbar (max-width: 620px) {
+    .code-tabber {
+        flex: 1 1 auto;
+        min-width: 0;
+    }
+
+    .code-tabber a {
+        min-width: 36px;
+        padding-right: 7px;
+        padding-left: 7px;
+        overflow: hidden;
+    }
+
+    .lc-editor-tab-prefix {
+        display: none;
+    }
+
+    .lc-editor-menubar-tools {
+        flex: 0 0 auto;
+        gap: 4px;
+    }
+
+    .lc-editor-window-actions .lc-editor-layout-selector .lc-editor-layout-choice,
+    #lc-code-editor-winbox .lc-editor-window-actions .lc-editor-layout-selector .lc-editor-layout-choice {
+        width: 28px;
+    }
+
+    .lc-editor-layout-selector {
+        padding: 1px;
+    }
+
+    .lc-editor-window-utility-actions {
+        margin-left: 0;
+    }
+
+    .lc-editor-window-utility-actions .lc-editor-close-custom,
+    #lc-code-editor-winbox .lc-editor-window-utility-actions .lc-editor-close-custom {
+        width: 34px;
+    }
+}
+
+@container lc-code-editor-toolbar (max-width: 520px) {
+    .lc-editor-layout-label {
+        display: none;
+    }
+
+    .lc-editor-resources,
+    .lc-editor-layout-choice[data-layout="external"] {
+        display: none !important;
+    }
+
+    .code-tabber a {
+        gap: 4px;
+        padding-right: 5px;
+        padding-left: 5px;
+        font-size: 10px;
+    }
+
+    .lc-editor-tab-icon {
+        width: 11px;
+        font-size: 10px;
+    }
+
+    .lc-editor-window-actions {
+        gap: 3px;
+    }
+}
+
+.lc-editor-window-actions button:hover {
+    color: var(--color1);
+    background: rgba(255,255,255,0.08);
+}
+
+.lc-editor-window-actions button.is-active {
+    color: var(--color2);
+}
+
+#lc-code-editor-winbox .lc-editor-window-actions button.is-active {
+    color: #151724;
+    background: var(--color2);
+}
+
+@container (max-width: 949px) {
+    .lc-editor-menubar-tools > .lc-editor-settings {
+        display: none;
+    }
+}
+
+/* CODE TABS AND NEARBY CONTEXT ACTIONS */
+.code-tabber,
+.after-tabber-extras {
+    display: flex;
+    align-items: center;
+}
+
+.code-tabber {
+    position: relative;
+    flex: 0 1 auto;
+    min-width: 0;
+    align-self: stretch;
+    gap: 0;
+    padding: 0;
+    overflow: hidden;
+    border: 0;
+    border-bottom: 1px solid rgba(255,255,255,0.2);
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+}
+
+.code-tabber a {
+    position: relative;
+    display: inline-flex;
+    flex: 1 1 auto;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    min-width: 48px;
+    min-height: 32px;
+    padding: 0 14px;
+    box-sizing: border-box;
+    overflow: hidden;
+    border: 0;
+    border-right: 1px solid rgba(255,255,255,0.14);
+    border-radius: 5px 5px 0 0;
+    color: rgba(244,247,251,0.8);
+    background: transparent;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.045em;
+    line-height: 1;
+    text-align: center;
+    text-overflow: ellipsis;
+    text-decoration: none;
+    text-shadow: 0 1px 1px rgba(0,0,0,0.38);
+    text-transform: uppercase;
+    white-space: nowrap;
+    transition: color 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.lc-editor-tab-icon {
+    flex: 0 0 auto;
+    width: 13px;
+    font-size: 12px;
+    line-height: 1;
+    opacity: 0.76;
+    text-align: center;
+}
+
+#html-tab .lc-editor-tab-icon {color: var(--color2)}
+#css-tab .lc-editor-tab-icon {color: var(--color1)}
+#js-tab .lc-editor-tab-icon {color: var(--color-yellow)}
+
+.code-tabber a.active .lc-editor-tab-icon,
+.code-tabber a:hover .lc-editor-tab-icon {
+    opacity: 1;
+}
+
+.code-tabber a:hover:not(.active) {
+    color: #fff;
+    background: rgba(255,255,255,0.08);
+}
+
+.code-tabber a:focus-visible,
+.after-tabber-extras a:focus-visible {
+    outline: 2px solid var(--color2);
+    outline-offset: 1px;
+}
+
+.code-tabber a.active {
+    color: #fff;
+    text-shadow: none;
+}
+
+.code-tabber a#html-tab.active {
+    color: #fff;
+    background: rgba(232,62,140,0.13);
+    box-shadow: inset 0 -3px 0 var(--color2), inset 0 1px 0 rgba(255,255,255,0.08);
+}
+
+.code-tabber a#css-tab.active {
+    background: rgba(38,198,218,0.14);
+    box-shadow: inset 0 -3px 0 var(--color1), inset 0 1px 0 rgba(255,255,255,0.08);
+}
+
+.code-tabber a#js-tab.active {
+    color: #fff;
+    background: rgba(255,204,0,0.1);
+    box-shadow: inset 0 -3px 0 var(--color-yellow), inset 0 1px 0 rgba(255,255,255,0.08);
+}
+
+.after-tabber-extras {
+    flex: 0 0 auto;
+    gap: 3px;
+}
+
+.after-tabber-extras a {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    min-height: 30px;
+    padding: 0 10px;
+    box-sizing: border-box;
+    border: 1px solid rgba(255,255,255,0.14);
+    border-radius: 6px;
+    color: rgba(244,247,251,0.78);
+    background: rgba(0,0,0,0.16);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.025em;
+    line-height: 1;
+    text-decoration: none;
+    text-shadow: 0 1px 1px rgba(0,0,0,0.38);
+    transition: color 0.15s ease, background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.after-tabber-extras a .fa {
+    color: var(--color1);
+    font-size: 12px;
+}
+
+.after-tabber-extras a:hover {
+    color: #fff;
+    border-color: rgba(255,255,255,0.28);
+    background: rgba(255,255,255,0.1);
+}
+
+.after-tabber-extras a:focus {
+    color: #fff;
+    background: rgba(255,255,255,0.1);
+}
 
 /*  ============= SIDE PANEL =============  */
 section[item-type] .show-only-in-sections {display:none}
@@ -2438,6 +3938,10 @@ body.simplified_client_ui #toggle-tree-view {display: none}
     flex: 0 0 16px;
 }
 /* TREE STRUCTURE */
+
+#tree-window {
+    z-index: 10001 !important;
+}
 
 #tree-body {
     height: 100%;

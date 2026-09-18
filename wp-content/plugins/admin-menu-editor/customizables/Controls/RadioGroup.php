@@ -3,8 +3,9 @@
 namespace YahnisElsts\AdminMenuEditor\Customizable\Controls;
 
 use YahnisElsts\AdminMenuEditor\Customizable\HtmlHelper;
-use YahnisElsts\AdminMenuEditor\Customizable\Rendering\Context;
+
 use YahnisElsts\AdminMenuEditor\Customizable\Rendering\Renderer;
+use YahnisElsts\AdminMenuEditor\WireDSL\EvaluationContext;
 
 //TODO: Could this conceivably be a subclass of ControlGroup? It can generate the controls dynamically.
 class RadioGroup extends ChoiceControl implements ControlContainer {
@@ -23,19 +24,10 @@ class RadioGroup extends ChoiceControl implements ControlContainer {
 
 	protected $descriptionsAsTooltips = false;
 
-	/**
-	 * @var Control[]
-	 */
-	protected $choiceChildren = [];
-
 	public function __construct($settings = [], $params = [], $children = []) {
 		parent::__construct($settings, $params, $children);
 
-		if ( isset($params['choiceChildren']) ) {
-			$this->choiceChildren = $params['choiceChildren'];
-		}
-
-		$this->wrapStyle = isset($params['wrap']) ? $params['wrap'] : self::WRAP_PARAGRAPH;
+		$this->wrapStyle = $params['wrap'] ?? self::WRAP_PARAGRAPH;
 		switch ($this->wrapStyle) {
 			case self::WRAP_LINE_BREAK:
 				//A few WordPress settings pages use this.
@@ -56,12 +48,16 @@ class RadioGroup extends ChoiceControl implements ControlContainer {
 		}
 	}
 
-	public function renderContent(Renderer $renderer, Context $context) {
+	public function renderContent(Renderer $renderer, EvaluationContext $context) {
 		$fieldName = $this->getFieldName($context);
 		$currentValue = $this->getMainSettingValue(null, $context);
 
+		//Note: Option initialization needs to happen before checking if any options have nested
+		//controls. Otherwise, we'll always get the "no nested controls" case.
+		$options = $this->getOptions($context);
+
 		$classes = $this->classes;
-		$hasNestedControls = !empty($this->choiceChildren);
+		$hasNestedControls = !empty($this->optionChildIndex);
 		if ( $hasNestedControls ) {
 			$classes[] = 'ame-rg-has-nested-controls';
 		}
@@ -85,12 +81,12 @@ class RadioGroup extends ChoiceControl implements ControlContainer {
 				'data-bind' => $this->makeKoDataBind($this->getKoEnableBinding()),
 			]
 		);
-		foreach ($this->options as $option) {
+		foreach ($options as $option) {
 			$isChecked = ($currentValue === $option->value);
 
 			echo $beforeOption;
 			$labelClasses = ['ame-rg-option-label'];
-			if ( isset($this->choiceChildren[$option->value]) ) {
+			if ( is_string($option->value) && $this->hasOptionChild($option->value) ) {
 				$labelClasses[] = 'ame-rg-has-choice-child';
 			}
 			echo $this->buildTag('label', ['class' => $labelClasses]);
@@ -100,7 +96,7 @@ class RadioGroup extends ChoiceControl implements ControlContainer {
 				array_merge([
 					'type'      => 'radio',
 					'name'      => $fieldName,
-					'value'     => $this->mainBinding->encodeForForm($option->value),
+					'value'     => $context->encodeValueForForm($this->mainBinding, $option->value),
 					'class'     => $this->getInputClasses($context),
 					'checked'   => $isChecked,
 					'disabled'  => !$option->enabled,
@@ -128,11 +124,13 @@ class RadioGroup extends ChoiceControl implements ControlContainer {
 			echo '</label>';
 			echo $afterOption;
 
-			if ( isset($this->choiceChildren[$option->value]) ) {
-				$childControl = $this->choiceChildren[$option->value];
-				echo HtmlHelper::tag('span', ['class' => 'ame-rg-nested-control']);
-				$renderer->renderControl($childControl, $context);
-				echo '</span>';
+			if ( is_string($option->value) ) {
+				$child = $this->getOptionChild($option->value);
+				if ( $child instanceof Control ) {
+					echo HtmlHelper::tag('span', ['class' => 'ame-rg-nested-control']);
+					$renderer->renderControl($child, $context);
+					echo '</span>';
+				}
 			}
 		}
 		echo '</fieldset>';
@@ -145,57 +143,21 @@ class RadioGroup extends ChoiceControl implements ControlContainer {
 	 * @param ChoiceControlOption $option
 	 * @return string
 	 */
-	protected function getRadioInputId($option) {
+	protected function getRadioInputId(ChoiceControlOption $option): string {
 		return $this->getRadioInputPrefix() . sanitize_key(strval($option->value));
 	}
 
-	protected function getRadioInputPrefix() {
+	protected function getRadioInputPrefix(): string {
 		return self::INPUT_ID_PREFIX . $this->instanceNumber . '-';
 	}
 
-	public function serializeForJs(Context $context): array {
-		$result = parent::serializeForJs($context);
-		if ( !isset($result['children']) ) {
-			$result['children'] = [];
-			foreach ($this->choiceChildren as $child) {
-				$result['children'][] = $child->serializeForJs($context);
-			}
-		}
-		return $result;
-	}
+	protected function getKoComponentParams(EvaluationContext $context): array {
+		$params = parent::getKoComponentParams($context);
 
-	protected function getKoComponentParams(): array {
-		$params = parent::getKoComponentParams();
-
-		$hasNestedControls = !empty($this->choiceChildren);
+		$hasNestedControls = !empty($this->optionChildIndex);
 		$params['wrapStyle'] = $hasNestedControls ? self::WRAP_NONE : $this->wrapStyle;
 		$params['radioInputPrefix'] = $this->getRadioInputPrefix();
 
-		if ( $hasNestedControls ) {
-			//Values can be things that aren't valid JS identifiers, so we'll serialize
-			//the value-to-child relationship as an array of value + child index pairs.
-			$valueChildIndexes = [];
-			$i = 0;
-			foreach ($this->choiceChildren as $value => $child) {
-				$valueChildIndexes[] = [$value, $i];
-				$i++;
-			}
-			$params['valueChildIndexes'] = $valueChildIndexes;
-		}
-
 		return $params;
-	}
-
-	public function getChildren(): array {
-		return array_unique(array_merge(array_values($this->choiceChildren), $this->children), SORT_REGULAR);
-	}
-
-	public function getAllDescendants() {
-		foreach ($this->getChildren() as $child) {
-			yield $child;
-			if ( $child instanceof ControlContainer ) {
-				yield from $child->getAllDescendants();
-			}
-		}
 	}
 }

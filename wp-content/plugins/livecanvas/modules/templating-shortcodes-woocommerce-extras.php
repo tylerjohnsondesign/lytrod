@@ -24,11 +24,13 @@ if ( ! function_exists( 'kia_add_to_cart_form_features_compatibility' ) ) {
 			return;
 		}
 
+		$plugin_basename = plugin_basename( dirname( __DIR__ ) . '/livecanvas-plugin-index.php' );
+
 		// High Performance Order Storage (HPOS) Compatibility
-		\Automattic\WooCommerce\Utilities\FeaturesUtil::declare_compatibility( 'custom_order_tables', plugin_basename( __FILE__ ), true );
+		\Automattic\WooCommerce\Utilities\FeaturesUtil::declare_compatibility( 'custom_order_tables', $plugin_basename, true );
 
 		// Cart/Checkout Blocks compatibility.
-		\Automattic\WooCommerce\Utilities\FeaturesUtil::declare_compatibility( 'cart_checkout_blocks', plugin_basename( __FILE__ ), true );
+		\Automattic\WooCommerce\Utilities\FeaturesUtil::declare_compatibility( 'cart_checkout_blocks', $plugin_basename, true );
 	}
 
 }
@@ -212,4 +214,3 @@ if ( ! function_exists( 'kia_add_to_cart_form_return_one' ) ) {
 		return 1;
 	}
 }
-

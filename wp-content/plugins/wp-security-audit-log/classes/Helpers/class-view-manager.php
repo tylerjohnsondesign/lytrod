@@ -215,7 +215,7 @@ if ( ! class_exists( '\WSAL\Helpers\View_Manager' ) ) {
 					array( self::$views[0], 'set_hook_suffix' ),
 					add_menu_page(
 						'WP Activity Log',
-						'WP Activity Log' . self::get_updates_count_html(),
+						'WP Activity Log',
 						'read', // No capability requirement.
 						$main_view_menu_slug,
 						array( __CLASS__, 'render_view_body' ),
@@ -283,52 +283,6 @@ if ( ! class_exists( '\WSAL\Helpers\View_Manager' ) ) {
 		}
 
 		/**
-		 * Returns the HTML that shows baboon notifications about the banners we have not confirmed.
-		 *
-		 * @return string
-		 *
-		 * @since 5.2.2
-		 */
-		public static function get_updates_count_html(): string {
-			$count      = Notices::get_number_of_notices();
-			$count_html = '';
-
-			if ( 0 < $count ) {
-				$style = '<style>
-					#wsal-notices-menu .update-count {
-						position: absolute !important;
-						top: 2px !important;
-						right: 4px !important;
-						min-width: 20px !important;
-						margin-right: 2px !important;
-						line-height: 1.2rem !important;
-						background: #d63638 !important;
-						border-radius: 50% !important;
-						display: inline-block !important;
-						vertical-align: top !important;
-						z-index: 26 !important;
-						font-weight: bold !important;
-					}
-					#wsal-notices-menu.update-plugins {
-						display: inline !important;
-						background: none !important;
-					}
-				</style>';
-
-				$count_html = $style;
-
-				/**
-				 * . sprintf(
-				 * ' <span id="wsal-notices-menu" class="update-plugins"><span class="update-count">%d</span></span>',
-				 * \number_format_i18n( $count )
-				 * );
-				 */
-			}
-
-			return $count_html;
-		}
-
-		/**
 		 * WordPress Filter
 		 *
 		 * @param array $old_links - Array of old links.
@@ -346,7 +300,7 @@ if ( ! class_exists( '\WSAL\Helpers\View_Manager' ) ) {
 
 					if ( 1 === count( $new_links ) && ! wsal_freemius()->is__premium_only() ) {
 						// Trial link.
-						$trial_link  = 'https://melapress.com/wordpress-activity-log/pricing/?utm_source=plugin&utm_medium=link&utm_campaign=wsal';
+						$trial_link  = 'https://melapress.com/wordpress-activity-log/pricing/?utm_source=plugin&utm_medium=wsal&utm_campaign=plugins-page-get-premium';
 						$new_links[] = '<a style="font-weight:bold; color:#049443 !important" href="' . $trial_link . '" target="_blank">' . __( 'Get Premium!', 'wp-security-audit-log' ) . '</a>';
 					}
 				}

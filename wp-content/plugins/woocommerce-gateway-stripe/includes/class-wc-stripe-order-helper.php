@@ -205,6 +205,16 @@ class WC_Stripe_Order_Helper {
 	private const META_STRIPE_LOCK_REFUND = '_stripe_lock_refund';
 
 	/**
+	 * Meta key for the In-Person Payments channel.
+	 *
+	 * Stores the ipp_channel value from Stripe PaymentIntent metadata.
+	 * Used to identify POS terminal payments (e.g. 'mobile_pos', 'mobile_store_management').
+	 *
+	 * @var string
+	 */
+	private const META_STRIPE_IPP_CHANNEL = '_stripe_ipp_channel';
+
+	/**
 	 * Singleton instance of the class.
 	 *
 	 * @var null|WC_Stripe_Order_Helper
@@ -434,6 +444,98 @@ class WC_Stripe_Order_Helper {
 	 */
 	public function delete_stripe_refund_id( ?WC_Order $order = null ) {
 		return $this->delete_order_meta( $order, self::META_STRIPE_REFUND_ID );
+	}
+
+	/**
+	 * Gets the Stripe refund ID stored on a refund record.
+	 *
+	 * The parent order's `_stripe_refund_id` only tracks the most recent refund, so
+	 * per-refund reconciliation must read the ID from the refund record itself.
+	 *
+	 * @since 10.9.0
+	 *
+	 * @param WC_Order_Refund|null $refund
+	 * @return false|string|null
+	 */
+	public function get_stripe_refund_id_for_refund( ?WC_Order_Refund $refund = null ) {
+		if ( null === $refund ) {
+			return false;
+		}
+
+		return $refund->get_meta( self::META_STRIPE_REFUND_ID, true );
+	}
+
+	/**
+	 * Stores the Stripe refund ID on a refund record.
+	 *
+	 * Does not persist; callers must save the refund. `WC_Order_Refund` has no
+	 * `transaction_id` in WooCommerce core, so meta is the only portable storage.
+	 *
+	 * @since 10.9.0
+	 *
+	 * @param WC_Order_Refund|null $refund
+	 * @param string $refund_id
+	 * @return false|void
+	 */
+	public function update_stripe_refund_id_for_refund( ?WC_Order_Refund $refund = null, string $refund_id = '' ) {
+		if ( null === $refund ) {
+			return false;
+		}
+
+		$refund->update_meta_data( self::META_STRIPE_REFUND_ID, $refund_id );
+	}
+
+	/**
+	 * Deletes the Stripe refund ID from a refund record.
+	 *
+	 * Does not persist; callers must save the refund.
+	 *
+	 * @since 10.9.0
+	 *
+	 * @param WC_Order_Refund|null $refund
+	 * @return false|void
+	 */
+	public function delete_stripe_refund_id_for_refund( ?WC_Order_Refund $refund = null ) {
+		if ( null === $refund ) {
+			return false;
+		}
+
+		$refund->delete_meta_data( self::META_STRIPE_REFUND_ID );
+	}
+
+	/**
+	 * Returns the order's refund records that carry their own Stripe refund ID.
+	 *
+	 * @since 10.9.0
+	 *
+	 * @param WC_Order $order
+	 * @return WC_Order_Refund[]
+	 */
+	public function get_refunds_with_stripe_refund_ids( WC_Order $order ): array {
+		return array_filter(
+			$order->get_refunds(),
+			function ( $refund ) {
+				return ! empty( $this->get_stripe_refund_id_for_refund( $refund ) );
+			}
+		);
+	}
+
+	/**
+	 * Deletes the Stripe refund ID from each of the order's refund records.
+	 *
+	 * Unlike the single-record methods, this persists each deletion — as a bulk
+	 * operation over records it looked up itself, callers have nothing to save.
+	 *
+	 * @since 10.9.0
+	 *
+	 * @param WC_Order $order
+	 * @return void
+	 */
+	public function delete_stripe_refund_ids_from_refunds( WC_Order $order ): void {
+		foreach ( $this->get_refunds_with_stripe_refund_ids( $order ) as $refund ) {
+			$this->delete_stripe_refund_id_for_refund( $refund );
+			$refund->save_meta_data();
+		}
 	}
 
 	/**
@@ -800,6 +902,23 @@ class WC_Stripe_Order_Helper {
 	}
 
 	/**
+	 * Checks whether the order's charge was explicitly recorded as authorize-only ('no').
+	 *
+	 * Deliberately false when the flag was never recorded (''): capture and void flows act on
+	 * this state by moving or releasing money, so an unknown state must not qualify — only a
+	 * charge Stripe was seen to leave uncaptured. Contrast is_stripe_charge_captured(), which
+	 * folds missing into false.
+	 *
+	 * @since 10.9.0
+	 *
+	 * @param WC_Order|null $order The order to check.
+	 * @return bool
+	 */
+	public function is_stripe_charge_authorized_only( ?WC_Order $order = null ): bool {
+		return 'no' === $this->get_stripe_charge_captured( $order );
+	}
+
+	/**
 	 * Sets whether charge was captured for order.
 	 *
 	 * @since 10.1.0
@@ -811,6 +930,38 @@ class WC_Stripe_Order_Helper {
 	 */
 	public function set_stripe_charge_captured( WC_Order $order, bool $captured = true ): void {
 		$this->update_order_meta( $order, self::META_STRIPE_CHARGE_CAPTURED, wc_bool_to_string( $captured ) );
+	}
+
+	/**
+	 * Records the captured state carried by a Stripe charge on the order.
+	 *
+	 * This is the single writer of the captured flag for every code path that receives a
+	 * charge object — a checkout response (process_response()), a webhook payload
+	 * (payment_intent.processing, charge.succeeded, charge.captured, charge.refunded), or
+	 * an on-demand API fetch (refund-time resolution, charge ID recovery). Refund and
+	 * capture flows read the flag to tell a refundable charge from a voidable
+	 * pre-authorization.
+	 *
+	 * Some payment methods create their charge only after checkout, so a webhook payload or
+	 * an API fetch may be the first — and only — chance to record the flag.
+	 *
+	 * Does not persist the order; callers decide when to save.
+	 *
+	 * @since 10.9.0
+	 *
+	 * @param WC_Order $order The order to record the captured state on.
+	 * @param object|string|null $charge The received Stripe charge (or charge-shaped webhook payload).
+	 * @return bool|null The recorded captured state, or null when the charge carries none.
+	 */
+	public function sync_stripe_charge_captured( WC_Order $order, $charge ): ?bool {
+		if ( ! is_object( $charge ) || ! isset( $charge->captured ) ) {
+			return null;
+		}
+
+		$captured = (bool) $charge->captured;
+		$this->set_stripe_charge_captured( $order, $captured );
+
+		return $captured;
 	}
 
 	/**
@@ -924,6 +1075,31 @@ class WC_Stripe_Order_Helper {
 	 */
 	public function update_stripe_upe_redirect_processed( ?WC_Order $order = null, bool $redirect_processed = false ) {
 		return $this->update_order_meta( $order, self::META_STRIPE_UPE_REDIRECT_PROCESSED, $redirect_processed );
+	}
+
+	/**
+	 * Gets the In-Person Payments channel for the order.
+	 *
+	 * @since 10.6.0
+	 *
+	 * @param WC_Order|null $order
+	 * @return false|string|null
+	 */
+	public function get_stripe_ipp_channel( ?WC_Order $order = null ) {
+		return $this->get_order_meta( $order, self::META_STRIPE_IPP_CHANNEL );
+	}
+
+	/**
+	 * Updates the In-Person Payments channel for the order.
+	 *
+	 * @since 10.6.0
+	 *
+	 * @param WC_Order|null $order
+	 * @param string $channel The IPP channel value (e.g. 'mobile_pos', 'mobile_store_management').
+	 * @return false|void
+	 */
+	public function update_stripe_ipp_channel( ?WC_Order $order = null, string $channel = '' ) {
+		return $this->update_order_meta( $order, self::META_STRIPE_IPP_CHANNEL, $channel );
 	}
 
 	/**
@@ -1059,6 +1235,7 @@ class WC_Stripe_Order_Helper {
 		$details['address']['postal_code'] = $order->get_billing_postcode();
 		$details['address']['country']     = $order->get_billing_country();
 
+		/** This filter is documented in includes/abstracts/abstract-wc-stripe-payment-gateway.php. */
 		return (object) apply_filters( 'wc_stripe_owner_details', $details, $order );
 	}
 

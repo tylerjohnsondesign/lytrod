@@ -214,7 +214,29 @@ body #lc-interface .lc-contextual-actions {
 }
 body #lc-interface .lc-contextual-actions ul {list-style-type: none;}
 body #lc-interface .lc-contextual-actions ul li {display: block;padding: 3px }
-body #lc-interface .lc-contextual-actions ul li a {font-size: 12px}
+body #lc-interface .lc-contextual-actions ul li a {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    min-height: 24px;
+    padding: 3px 8px 3px 3px;
+    border-radius: 3px;
+    font-size: 12px;
+    transition: background-color 0.12s ease-out, color 0.12s ease-out, transform 0.12s ease-out;
+}
+body #lc-interface .lc-contextual-actions ul li a:hover,
+body #lc-interface .lc-contextual-actions ul li a:focus {
+    background: rgba(255,255,255,0.18);
+    color: #fff;
+    outline: none;
+    transform: translateX(2px);
+}
+body #lc-interface .lc-contextual-actions ul li a:hover svg,
+body #lc-interface .lc-contextual-actions ul li a:focus svg,
+body #lc-interface .lc-contextual-actions ul li a:hover .fa,
+body #lc-interface .lc-contextual-actions ul li a:focus .fa {
+    opacity: 1;
+}
 body #lc-interface .lc-contextual-actions ul li .fa {font-size: 14px;width:30px;text-align: center;}
  
 /* LINKS FOR ITEMs */

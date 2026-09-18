@@ -97,7 +97,8 @@ function openPartialHtmlEditor(selector) {
     myConsoleLog("Open html editor for: " + selector); 
     const html = getPageHTMLOuter(selector);  
     set_html_editor(html);
-    $("#lc-code-editor-window").removeClass("lc-opacity-light").fadeIn(100);
+    if (window.openCodeEditorWindow) openCodeEditorWindow();
+    else $("#lc-code-editor-window").removeClass("lc-opacity-light").fadeIn(100);
     lc_html_editor.focus();
     $("#html-tab").click();
 }
@@ -269,6 +270,14 @@ function initialize_contextual_menu_actions() {
     previewFrame.contents().find("body").on("click", '.lc-open-html-editor', function (e) {
         e.preventDefault();
         var selector = $(this).closest("[selector]").attr("selector");
+        const $previewBody = previewFrame.contents().find("body");
+        $previewBody.data("lc-contextual-menus-suspended", true);
+        $previewBody.find(".lc-contextual-menu").stop(true, true).hide()
+            .find(".lc-contextual-actions").stop(true, true).hide();
+        $previewBody.off("pointermove.lcResumeContextualMenus")
+            .one("pointermove.lcResumeContextualMenus", function () {
+                $previewBody.removeData("lc-contextual-menus-suspended");
+            });
         openPartialHtmlEditor(selector);
     });
 
@@ -411,4 +420,3 @@ function initialize_contextual_menu_actions() {
 
 
 } //end function
-

@@ -66,7 +66,7 @@ class NF_Database_Migrations
      * @since 2.9.34
      * @updated 3.3.16
      */
-    public function nuke( $areYouSure = FALSE, $areYouReallySure = FALSE, $nuke_multisite = TRUE )
+    public function nuke( $areYouSure = FALSE, $areYouReallySure = FALSE, $nuke_multisite = FALSE )
     {
         if( ! $areYouSure || ! $areYouReallySure ) return;
 
@@ -94,12 +94,15 @@ class NF_Database_Migrations
 
     /**
      * Function to handle the actual deletion of tables and caches.
-     * 
+     *
      * @since 3.1.0
+     * @return void
      */
-    private function _nuke()
+    protected function _nuke()
     {
         global $wpdb;
+
+        require_once dirname( __DIR__ ) . '/AI/ConversationStore.php';
 
         /* Drop THREE Tables */
         foreach( $this->migrations as $migration ){
@@ -110,18 +113,69 @@ class NF_Database_Migrations
         $wpdb->query( "DELETE FROM `{$wpdb->options}` WHERE `option_name` LIKE 'nf_form_%'" );
         $wpdb->query( "DELETE FROM `{$wpdb->options}` WHERE `option_name` LIKE '_transient_nf_form_%'" );
         $wpdb->query( "DELETE FROM `{$wpdb->options}` WHERE `option_name` LIKE '_transient_timeout_nf_form_%'" );
+
+        /* Delete every persisted AI assistant choice and conversation. */
+        $ai_option_prefixes = \NinjaForms\Includes\AI\ConversationStore::optionPrefixes();
+        foreach ( $ai_option_prefixes as $option_prefix ) {
+            $option_names = $wpdb->get_col(
+                $wpdb->prepare(
+                    "SELECT option_name FROM `{$wpdb->options}` WHERE option_name LIKE %s",
+                    $wpdb->esc_like( $option_prefix ) . '%'
+                )
+            );
+            foreach ( $option_names as $option_name ) {
+                // delete_option() also invalidates persistent object caches.
+                delete_option( $option_name );
+            }
+        }
+        delete_option( 'nf_ai_last_model' );
+
+        /*
+         * Discover dynamic AI transient names before deleting them. Raw SQL
+         * alone leaves persistent object-cache values alive, so each cache is
+         * removed through delete_transient().
+         */
+        $ai_transients = array(
+            'nf_ai_connected_providers',
+            'nf_ai_provider_available',
+        );
+        $ai_provider_ids = array( 'anthropic', 'google', 'openai' );
+        $transient_options = $wpdb->get_col(
+            $wpdb->prepare(
+                "SELECT option_name FROM `{$wpdb->options}` WHERE option_name LIKE %s",
+                $wpdb->esc_like( '_transient_nf_ai_' ) . '%'
+            )
+        );
+        foreach ( $transient_options as $transient_option ) {
+            if ( 0 === strpos( $transient_option, '_transient_timeout_' ) ) {
+                continue;
+            }
+            $ai_transients[] = substr( $transient_option, strlen( '_transient_' ) );
+        }
+        if ( function_exists( 'wp_get_connectors' ) ) {
+            $ai_provider_ids = array_merge( $ai_provider_ids, array_keys( wp_get_connectors() ) );
+        }
+        foreach ( array_unique( $ai_provider_ids ) as $provider_id ) {
+            $provider_id = sanitize_key( $provider_id );
+            $ai_transients[] = 'nf_ai_model_catalog_' . $provider_id;
+            $ai_transients[] = 'nf_ai_auth_failed_' . $provider_id;
+        }
+        foreach ( array_unique( $ai_transients ) as $transient_name ) {
+            delete_transient( $transient_name );
+        }
     }
 
 
     /**
      * Function to nuke our 3.0 settings.
-     * 
+     *
      * @param $areYouSure (Boolean)
      * @param $areYouReallySure (Boolean)
-     * 
+     * @param $nuke_multisite (Boolean) Whether to delete settings across all subsites.
+     *
      * @since 3.1.0
      */
-    public function nuke_settings( $areYouSure = FALSE, $areYouReallySure = FALSE )
+    public function nuke_settings( $areYouSure = FALSE, $areYouReallySure = FALSE, $nuke_multisite = FALSE )
     {
         if( ! $areYouSure || ! $areYouReallySure ) return;
 
@@ -132,22 +186,27 @@ class NF_Database_Migrations
             return;
         }
 
-        $blog_ids = $wpdb->get_col( "SELECT blog_id FROM $wpdb->blogs" );
+        if ( $nuke_multisite ) {
+            $blog_ids = $wpdb->get_col( "SELECT blog_id FROM $wpdb->blogs" );
 
-        foreach( $blog_ids as $blog_id ){
-            switch_to_blog( $blog_id );
+            foreach( $blog_ids as $blog_id ){
+                switch_to_blog( $blog_id );
+                $this->_nuke_settings();
+                restore_current_blog(); // Call after EVERY switch_to_blog().
+            }
+        } else {
             $this->_nuke_settings();
-            restore_current_blog(); // Call after EVERY switch_to_blog().
+            return;
         }
     }
 
 
     /**
      * Function to handle the actual deletion of our 3.0 settings.
-     * 
+     *
      * @since 3.1.0
      */
-    private function _nuke_settings()
+    protected function _nuke_settings()
     {
         global $wpdb;
         /* Delete known options */
@@ -177,13 +236,14 @@ class NF_Database_Migrations
 
     /**
      * Function to nuke our 2.9 database tables.
-     * 
+     *
      * @param $areYouSure (Boolean)
      * @param $areYouReallySure (Boolean)
-     * 
+     * @param $nuke_multisite (Boolean) Whether to delete deprecated data across all subsites.
+     *
      * @since 3.1.0
      */
-    public function nuke_deprecated( $areYouSure = FALSE, $areYouReallySure = FALSE  )
+    public function nuke_deprecated( $areYouSure = FALSE, $areYouReallySure = FALSE, $nuke_multisite = FALSE )
     {
         if( ! $areYouSure || ! $areYouReallySure ) return;
 
@@ -194,22 +254,27 @@ class NF_Database_Migrations
             return;
         }
 
-        $blog_ids = $wpdb->get_col( "SELECT blog_id FROM $wpdb->blogs" );
+        if ( $nuke_multisite ) {
+            $blog_ids = $wpdb->get_col( "SELECT blog_id FROM $wpdb->blogs" );
 
-        foreach( $blog_ids as $blog_id ){
-            switch_to_blog( $blog_id );
+            foreach( $blog_ids as $blog_id ){
+                switch_to_blog( $blog_id );
+                $this->_nuke_deprecated();
+                restore_current_blog(); // Call after EVERY switch_to_blog().
+            }
+        } else {
             $this->_nuke_deprecated();
-            restore_current_blog(); // Call after EVERY switch_to_blog().
+            return;
         }
     }
 
 
     /**
      * Function to handle the actual deletion of deprecated tables and options.
-     * 
+     *
      * @since 3.1.0
      */
-    private function _nuke_deprecated()
+    protected function _nuke_deprecated()
     {
         global $wpdb;
 

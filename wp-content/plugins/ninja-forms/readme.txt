@@ -2,9 +2,9 @@
 Contributors: wpninjasllc, kstover, jameslaws, kbjohnson90, klhall1987, krmoorhouse, jmcelhaney, wpnzach, ericwindhamsd, mrpritchett, stuartsequeira, nahuelmahe
 Tags: forms, form builder, contact form, lead form, registration form
 
-Requires at least: 6.7
-Tested up to: 6.9
-Stable tag: 3.14.3
+Requires at least: 6.9
+Tested up to: 7.1
+Stable tag: 3.15.3
 Requires PHP: 7.4
 
 License: GPLv2 or later
@@ -310,24 +310,207 @@ This section describes how to install the plugin and get it working.
 5. Beautiful Forms Every Time!
 
 == Upgrade Notice ==
-= 3.14.3 (29 April 2026) =
+= 3.15.3 (07 September 2026) =
+
+*Security Enhancements:*
+
+- strengthen input validation for unserialize() operations
 
 *Bug Fixes:*
 
-- fix Quill.js Rich Text Editor table functionality not working properly
-- fix HTML being sanitized/stripped when saving Quill.js RTE content
-- fix Quill.js CSS conflicts with certain add-ons
-- fix ESC key removing HTML content from success messages with calculations
-- fix PHP warning for undefined array key "payment_total_type"
-- fix radio and checkbox field alignment for RTL languages
+- preserve newsletter action list selection when provider connection is temporarily unavailable
+- encode special characters correctly in CSV submission exports
+- allow optional and hidden Date/Time fields to pass validation
+- keep rich text editor scrollbar visible and functional in all views
+
+== Changelog ==
+= 3.15.3 (07 September 2026) =
+
+*Security Enhancements:*
+
+- strengthen input validation for unserialize() operations
+
+*Bug Fixes:*
+
+- preserve newsletter action list selection when provider connection is temporarily unavailable
+- encode special characters correctly in CSV submission exports
+- allow optional and hidden Date/Time fields to pass validation
+- keep rich text editor scrollbar visible and functional in all views
+
+= 3.15.2 (31 August 2026) =
+
+*Security Enhancements:*
+
+- enforce granular two-tier permission model in Abilities API, responsibly reported by ChinhNguyen
+- neutralize shortcode brackets in IP address and referer URL merge tags, responsibly reported by Jakub Herman
+- validate repeater child field entries against server-side definitions
+- apply context-correct output escaping in legacy submissions admin
+- ensure shortcode neutralization callback is accessible for array inputs
+
+*Bug Fixes:*
+
+- fix fatal error when Date/Time field is included in a CSV email attachment
+- show correct Developer Mode status notice in form builder settings drawer
+
+= 3.15.1 (24 August 2026) =
+
+*Security Enhancements:*
+
+- strengthen input validation for list field option imports
+
+*Bug Fixes:*
+
+- allow non-Latin characters and special symbols in list field option values
+- preserve HTML formatting in checkbox and radio list option labels after editing
+- capture time values correctly when Date/Time field is inside a Repeater
+- preserve user-authored HTML in rich text editor without restructuring on toggle
+- preserve HTML comments in Email Message field through Source/Visual toggles
+- keep heading-formatted text inside table cells in rich text editor
+- preserve nested div elements in HTML field editor
+- prevent editor from marking field as changed on initial load
+- display rich text editor toolbar icons for logged-out users
+- prevent fatal error when marketing feed data is corrupted
+- delay Date/Time required validation until user finishes entering time
+- make Date/Time field Hour and Minute placeholder text translatable
+- resolve critical error on non-English sites running PHP 8+
+- fix TypeError when Custom Input Mask contains only numbers
+- show correct AI provider status when Ollama connector is configured
+
+= 3.15.0 (12 August 2026) =
 
 *Enhancements:*
 
-- improve color contrast for form names on dashboard to meet WCAG 2.2 AA standards
-- improve color contrast for "Add New" button on dashboard to meet WCAG AA standards
-- add ARIA attributes, keyboard navigation, and focus styles to Quill.js RTE
+- add AI Form Builder: generate forms from natural language prompts via the Abilities API
 
-== Changelog ==
+*Bug Fixes:*
+
+- fix typed signatures with periods appearing incomplete after switching fields
+- prevent form from rendering multiple times when using "Append a Ninja Form" with other plugins
+- allow terms list field to be set as required
+
+= 3.14.12 (10 August 2026) =
+
+*Bug Fixes:*
+
+- tables inserted via toolbar now have visible borders and padding
+- preserve hand-coded table HTML in Email Message field
+- resolve TypeError when nf-behavioral.js file is missing
+- validation error on Time Only field now clears correctly
+- required field asterisk displays correctly on multi-form pages
+- form builder loads correctly when marketing filter is disabled
+- repeatable fieldset data now displays in email summaries
+
+*Security Enhancements:*
+
+- strengthen SQL query parameter handling
+
+= 3.14.11 (23 July 2026) =
+
+*Bug Fixes:*
+
+- fix CSV export column alignment for fields placed after repeatable fieldsets
+- preserve <br>, <hr>, and <pre> tags in HTML field editor
+- clear validation error on Time Only field when user corrects input
+- fix ninja_forms_render_options filter breaking form validation
+
+= 3.14.10 (20 July 2026) =
+
+*Bug Fixes:*
+
+- fix anchor tag URLs breaking when merge tags are used as querystrings in HTML fields
+- fix date field required validation not triggering for Date & Time mode
+- fix {other:date} merge tag reporting dates in UTC instead of local timezone
+
+*Enhancements:*
+
+- add banner-led partner cards to Partner Apps & Services tab
+
+*Security Enhancements:*
+
+- protect against SQL injection in import settings key
+- block unauthenticated shortcode execution; responsibly reported by Meher Sudhakar Abbireddi
+
+= 3.14.9 (09 July 2026) =
+
+*Bug Fixes:*
+
+- restore visibility of "Almost there..." heading in new-form drawer
+- add descender allowance for typed signature fonts in PDF
+
+*Security Enhancements:*
+
+- protect against unauthorized multisite data deletion
+- protect against stored XSS in Repeatable Fieldset
+- protect against field metadata override
+- protect against calc value injection in list fields
+- protect against unauthorized access to submissions via block insertion
+
+= 3.14.8 (230 June 2026) =
+
+*Bug Fixes:*
+
+- fix merge tag picker falsely triggering for calculation tags with slash in name
+- fix phone field truncating last digit when browser autofill includes country code
+- fix PHP warning for array offset on null in Model.php
+- fix opinionated styles CSS not loading for logged-out users
+- fix Gutenberg block editor iframe not loading (add API version 3)
+- fix personal data export failing with PHP fatal error in UserDataRequests.php
+- fix invisible reCAPTCHA v2 not working due to block scope bug
+- fix form builder sidebar not closing when screen width expands
+- fix {fields_table} incorrectly including unchecked checkbox fields
+
+= 3.14.7 (18 June 2026) =
+
+*Bug Fixes:*
+
+- fix date field "default to current date" displaying wrong date with conditional logic
+- fix date/date-time field value corruption when editing via submissions backend
+- fix checkbox fields not being redacted from record submissions
+- fix time display on single submission page for date/time fields
+- fix decimal precision loss in calculations
+
+*Enhancements:*
+
+- increase default visible columns in legacy submissions from 5 to 10
+- remove survey promo from admin
+
+*Security Enhancements:*
+
+- protect against PHP object injection in form import
+
+= 3.14.6 (10 June 2026) =
+
+*Bug Fixes:*
+
+- fix PHP warnings when retriggering emails from submissions page
+- fix bulk export returning no results when selecting a single day
+
+= 3.14.5 (19 May 2026) =
+
+*Bug Fixes:*
+
+- fix Rich Text Editor content displaying as raw HTML in submissions modal
+- fix HTML entity decoding in Rich Text Editor fields
+- fix Quill Rich Text Editor inline text alignment not being preserved
+- fix unordered list content being stripped in Quill Rich Text Editor
+- fix ordered list items getting unwanted markup injected in Quill Rich Text Editor
+- limit telemetry to admin only
+
+= 3.14.4 (11 May 2026) =
+
+*Bug Fixes:*
+
+- fix repeater field data showing as "Array" in email CSV attachments
+- fix mixed content blocking CSV downloads
+- fix CSV export with multiple repeater fields
+- fix repeater fieldset data misalignment in CSV exports
+- fix phone numbers with plus sign getting apostrophe prefix in CSV
+- fix decimal precision loss in number fields
+- fix form title showing blank for accessibility compliance
+- fix Quill Rich Text Editor placeholder initialization
+- fix merge tags with spaces in names not being recognized
+- fix PHP 8.4 nullable type deprecation warnings
+
 = 3.14.3 (29 April 2026) =
 
 *Bug Fixes:*

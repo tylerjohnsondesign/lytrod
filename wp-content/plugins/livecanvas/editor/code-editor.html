@@ -1,63 +1,146 @@
 <div class="lc-editor-menubar">
 
-    <div class="code-tabber">
-        <a id="html-tab" class="active" href="#"> HTML</a>
-        <a id="css-tab" href="#">Global CSS</a>
-        <a id="js-tab" href="#">Global JS</a>
-    </div>
+    <button type="button" class="lc-code-editor-drag-handle" aria-label="Move code editor window" title="Move code editor" hidden>
+        <span class="fa fa-ellipsis-v" aria-hidden="true"></span>
+    </button>
 
-    <div class="after-tabber-extras"> 
-        <a href="#" class="lc-editor-goto-parent-element only-for-html"> <span class="fa fa-level-up"></span> &nbsp;  Go to Parent</a>
+    <div class="code-tabber" role="tablist" aria-label="Code editor language">
+        <a id="html-tab" class="active" href="#" role="tab" aria-label="HTML" aria-controls="lc-html-editor" aria-selected="true" tabindex="0">
+            <span class="fa fa-code lc-editor-tab-icon" aria-hidden="true"></span>
+            <span class="lc-editor-tab-label">HTML</span>
+        </a>
+        <a id="css-tab" href="#" role="tab" aria-label="Global CSS" aria-controls="lc-css-editor" aria-selected="false" tabindex="-1">
+            <span class="fa fa-css3 lc-editor-tab-icon" aria-hidden="true"></span>
+            <span class="lc-editor-tab-label"><span class="lc-editor-tab-prefix">Global </span>CSS</span>
+        </a>
+        <a id="js-tab" href="#" role="tab" aria-label="Global JavaScript" aria-controls="lc-js-editor" aria-selected="false" tabindex="-1">
+            <span class="fa fa-bolt lc-editor-tab-icon" aria-hidden="true"></span>
+            <span class="lc-editor-tab-label"><span class="lc-editor-tab-prefix">Global </span>JS</span>
+        </a>
     </div>
-
-    <div class="lc-editor-menubar-draghandle"></div>
 
     <div class="lc-editor-menubar-tools">
-        <span>
-            Transparency
-            <input type="checkbox" id="lc-editor-transparency" >
-                
-            &nbsp;&nbsp;&nbsp;
-        </span>
-        <span>
-            Tips & How tos: 
-            
-            <select id="lc-editor-tips">
-                <option value="" selected>Browse...</option>
-                <optgroup label="Editor">
-                    <option value="https://docs.livecanvas.com/keyboard-tricks/">Keyboard shortcuts</option> 
-                </optgroup>
-                <optgroup label="HTML">
-                    <option value="https://docs.livecanvas.com/the-livecanvas-html-structure/">The LiveCanvas HTML structure</option>
-                    <option value="https://docs.livecanvas.com/creating-editable-regions/">Creating editable regions</option>
-                    <option value="https://bootstrap.ninja/ninjabootstrap/#spacing">NinjaBootstrap Classes Documentation</option>  
-                </optgroup>
-                <optgroup label="Dynamic">
-                    <option value="https://docs.livecanvas.com/shortcodes/">Built-in Shortcodes</option>
-                    <option value="https://docs.loopsandlogic.com/dynamic-tags/">Tangible Templating (Loops and Logic) Tags</option>
-                    <option value="https://docs.livecanvas.com/dynamic-templating/">Legacy Dynamic Templating Shortcodes</option>
-                    <option value="https://docs.livecanvas.com/woocommerce-shortcodes/">WooCommerce Dynamic Templating Shortcodes</option>
-                </optgroup>
-            </select>
-            
-            &nbsp;&nbsp;&nbsp;
+        <span class="lc-editor-window-actions">
+            <span class="lc-editor-layout-label">Window</span>
+            <span class="lc-editor-layout-selector" role="group" aria-label="Code editor view">
+                <button type="button" class="lc-editor-layout-choice is-active" data-layout="split-v" data-tooltip="Split below" aria-label="Split below: editor under preview" aria-pressed="true">
+                    <span class="lc-editor-split-icon lc-editor-split-icon-v" aria-hidden="true"></span>
+                </button>
+                <button type="button" class="lc-editor-layout-choice" data-layout="split-h" data-tooltip="Split beside" aria-label="Split beside: editor next to preview" aria-pressed="false">
+                    <span class="lc-editor-split-icon lc-editor-split-icon-h" aria-hidden="true"></span>
+                </button>
+                <button type="button" class="lc-editor-layout-choice" data-layout="custom" data-tooltip="Floating window" aria-label="Floating window: freely position the editor over the preview" aria-pressed="false">
+                    <span class="fa fa-clone" aria-hidden="true"></span>
+                </button>
+                <button type="button" class="lc-editor-layout-choice" data-layout="external" data-tooltip="External display" aria-label="External display: show the editor fullscreen on another display" aria-pressed="false">
+                    <span class="fa fa-external-link" aria-hidden="true"></span>
+                </button>
+            </span>
         </span>
 
-        <span>
-            Theme: 
-            <select id="lc-editor-theme"><optgroup label="Bright"><option value="chrome">Chrome</option><option value="clouds">Clouds</option><option value="crimson_editor">Crimson Editor</option><option value="dawn">Dawn</option><option value="dreamweaver">Dreamweaver</option><option value="eclipse">Eclipse</option><option value="github">GitHub</option><option value="iplastic">IPlastic</option><option value="solarized_light">Solarized Light</option><option value="textmate">TextMate</option><option value="tomorrow">Tomorrow</option><option value="xcode">XCode</option><option value="kuroir">Kuroir</option><option value="katzenmilch">KatzenMilch</option><option value="sqlserver">SQL Server</option></optgroup><optgroup label="Dark"><option value="ambiance">Ambiance</option><option value="chaos">Chaos</option><option value="clouds_midnight">Clouds Midnight</option><option value="dracula">Dracula</option><option value="cobalt">Cobalt</option><option value="gruvbox">Gruvbox</option><option value="gob">Green on Black</option><option value="idle_fingers">idle Fingers</option><option value="kr_theme">krTheme</option><option value="merbivore">Merbivore</option><option value="merbivore_soft">Merbivore Soft</option><option value="mono_industrial">Mono Industrial</option><option value="monokai">Monokai</option><option value="pastel_on_dark">Pastel on dark</option><option value="solarized_dark">Solarized Dark</option><option value="terminal">Terminal</option><option value="tomorrow_night">Tomorrow Night</option><option value="tomorrow_night_blue">Tomorrow Night Blue</option><option value="tomorrow_night_bright">Tomorrow Night Bright</option><option value="tomorrow_night_eighties">Tomorrow Night 80s</option><option value="twilight">Twilight</option><option value="vibrant_ink">Vibrant Ink</option></optgroup></select>
-            &nbsp;&nbsp;&nbsp;
+        <span class="lc-editor-view-options">
+            <button type="button" class="lc-editor-view-options-trigger" aria-label="Editor settings" title="Editor settings" aria-expanded="false" aria-controls="lc-editor-view-options-panel">
+                <span class="fa fa-sliders" aria-hidden="true"></span>
+                <span class="lc-editor-trigger-label">Settings</span>
+                <span class="fa fa-caret-down lc-editor-view-options-caret" aria-hidden="true"></span>
+            </button>
+
+            <span id="lc-editor-view-options-panel" class="lc-editor-view-options-panel" role="group" aria-labelledby="lc-editor-settings-title" hidden>
+                <span class="lc-editor-popover-header">
+                    <span class="lc-editor-popover-heading">
+                        <span class="fa fa-sliders" aria-hidden="true"></span>
+                        <strong id="lc-editor-settings-title">Editor settings</strong>
+                    </span>
+                    <small>Adjust the code view to your workspace.</small>
+                </span>
+                <label class="lc-editor-settings" for="lc-editor-theme">
+                    <span class="lc-editor-setting-label"><span class="fa fa-adjust" aria-hidden="true"></span><span>Theme</span></span>
+                    <select id="lc-editor-theme" aria-label="Editor theme"><optgroup label="Bright"><option value="chrome">Chrome</option><option value="clouds">Clouds</option><option value="crimson_editor">Crimson Editor</option><option value="dawn">Dawn</option><option value="dreamweaver">Dreamweaver</option><option value="eclipse">Eclipse</option><option value="github">GitHub</option><option value="iplastic">IPlastic</option><option value="solarized_light">Solarized Light</option><option value="textmate">TextMate</option><option value="tomorrow">Tomorrow</option><option value="xcode">XCode</option><option value="kuroir">Kuroir</option><option value="katzenmilch">KatzenMilch</option><option value="sqlserver">SQL Server</option></optgroup><optgroup label="Dark"><option value="ambiance">Ambiance</option><option value="chaos">Chaos</option><option value="clouds_midnight">Clouds Midnight</option><option value="dracula">Dracula</option><option value="cobalt">Cobalt</option><option value="gruvbox">Gruvbox</option><option value="gob">Green on Black</option><option value="idle_fingers">idle Fingers</option><option value="kr_theme">krTheme</option><option value="merbivore">Merbivore</option><option value="merbivore_soft">Merbivore Soft</option><option value="mono_industrial">Mono Industrial</option><option value="monokai">Monokai</option><option value="pastel_on_dark">Pastel on dark</option><option value="solarized_dark">Solarized Dark</option><option value="terminal">Terminal</option><option value="tomorrow_night">Tomorrow Night</option><option value="tomorrow_night_blue">Tomorrow Night Blue</option><option value="tomorrow_night_bright">Tomorrow Night Bright</option><option value="tomorrow_night_eighties">Tomorrow Night 80s</option><option value="twilight">Twilight</option><option value="vibrant_ink">Vibrant Ink</option></optgroup></select>
+                </label>
+                <label class="lc-editor-settings" for="lc-editor-fontsize">
+                    <span class="lc-editor-setting-label"><span class="fa fa-text-height" aria-hidden="true"></span><span>Font size</span></span>
+                    <input type="number" id="lc-editor-fontsize" value="13" min="9" max="24" step="1" inputmode="numeric" aria-label="Editor font size">
+                </label>
+                <label class="lc-editor-settings" for="lc-editor-transparency">
+                    <span class="lc-editor-setting-label"><span class="fa fa-eye" aria-hidden="true"></span><span>Transparency</span></span>
+                    <input type="checkbox" id="lc-editor-transparency" aria-label="Editor transparency">
+                </label>
+            </span>
         </span>
-        <span>Size: <input id="lc-editor-fontsize" type="number" value="13" min="9" max="24"> px &nbsp;&nbsp;&nbsp; </span>
-        <a href="#" class="lc-editor-side">Side <span class="fa fa-arrow-circle-left"></a>
-        <a href="#" class="lc-editor-maximize">Maximize <span class="fa fa-arrows-alt"></a>
-        <a href="#" class="lc-editor-close">Close <span class="fa fa-close"></span></a>
+
+        <span class="lc-editor-resources">
+            <button type="button" class="lc-editor-resources-trigger" aria-label="LiveCanvas resources" title="LiveCanvas resources" aria-expanded="false" aria-controls="lc-editor-resources-panel">
+                <span class="fa fa-lightbulb-o" aria-hidden="true"></span>
+                <span class="lc-editor-trigger-label">Resources</span>
+                <span class="fa fa-caret-down lc-editor-resources-caret" aria-hidden="true"></span>
+            </button>
+
+            <span id="lc-editor-resources-panel" class="lc-editor-resources-panel" role="group" aria-labelledby="lc-editor-resources-title" hidden>
+                <span class="lc-editor-resources-header">
+                    <span class="lc-editor-popover-heading">
+                        <span class="fa fa-lightbulb-o" aria-hidden="true"></span>
+                        <strong id="lc-editor-resources-title">LiveCanvas Resources</strong>
+                    </span>
+                    <small>Useful guides and references for building with LiveCanvas.</small>
+                </span>
+
+                <span class="lc-editor-resources-group">
+                    <strong><span class="fa fa-keyboard-o" aria-hidden="true"></span>Editor</strong>
+                    <a href="https://docs.livecanvas.com/keyboard-tricks/" target="_blank" rel="noopener noreferrer">Keyboard shortcuts</a>
+                    <a href="https://docs.livecanvas.com/the-main-editor-interface/" target="_blank" rel="noopener noreferrer">Main editor interface</a>
+                    <a href="https://docs.livecanvas.com/emmet-cheatsheet-code-for-bootstrap/" target="_blank" rel="noopener noreferrer">Emmet cheatsheet</a>
+                    <a href="https://docs.livecanvas.com/how-to-store-and-reuse-html-sections/" target="_blank" rel="noopener noreferrer">Reusing HTML sections</a>
+                </span>
+
+                <span class="lc-editor-resources-group">
+                    <strong><span class="fa fa-code" aria-hidden="true"></span>HTML &amp; Design</strong>
+                    <a href="https://docs.livecanvas.com/the-livecanvas-html-structure/" target="_blank" rel="noopener noreferrer">LiveCanvas HTML structure</a>
+                    <a href="https://docs.livecanvas.com/creating-editable-regions/" target="_blank" rel="noopener noreferrer">Creating editable regions</a>
+                    <a href="https://docs.livecanvas.com/svg-icons/" target="_blank" rel="noopener noreferrer">SVG icons</a>
+                    <a href="https://docs.livecanvas.com/rfs-responsive-font-sizing/" target="_blank" rel="noopener noreferrer">Responsive font sizing</a>
+                    <a href="https://bootstrap.ninja/ninjabootstrap/#spacing" target="_blank" rel="noopener noreferrer">NinjaBootstrap classes</a>
+                </span>
+
+                <span class="lc-editor-resources-group">
+                    <strong><span class="fa fa-css3" aria-hidden="true"></span>CSS &amp; JavaScript</strong>
+                    <a href="https://docs.livecanvas.com/the-css-editor/" target="_blank" rel="noopener noreferrer">CSS editor</a>
+                    <a href="https://docs.livecanvas.com/add-js-to-a-livecanvas-page-or-website/" target="_blank" rel="noopener noreferrer">Adding JavaScript</a>
+                    <a href="https://docs.livecanvas.com/adding-custom-css-or-js/" target="_blank" rel="noopener noreferrer">Custom CSS or JS</a>
+                    <a href="https://docs.livecanvas.com/adding-animations-with-the-aos-library/" target="_blank" rel="noopener noreferrer">AOS animations</a>
+                </span>
+
+                <span class="lc-editor-resources-group">
+                    <strong><span class="fa fa-database" aria-hidden="true"></span>Dynamic</strong>
+                    <a href="https://docs.livecanvas.com/post-loops/" target="_blank" rel="noopener noreferrer">Post Loops</a>
+                    <a href="https://docs.livecanvas.com/tangible/" target="_blank" rel="noopener noreferrer">Loops &amp; Logic guide</a>
+                    <a href="https://docs.loopsandlogic.com/dynamic-tags/" target="_blank" rel="noopener noreferrer">Loops &amp; Logic reference</a>
+                    <a href="https://docs.livecanvas.com/acf-blocks/" target="_blank" rel="noopener noreferrer">ACF Blocks</a>
+                    <a href="https://docs.livecanvas.com/forms-api/" target="_blank" rel="noopener noreferrer">Forms API</a>
+                    <a href="https://docs.livecanvas.com/shortcodes/" target="_blank" rel="noopener noreferrer">LC Shortcodes</a>
+                    <a href="https://docs.livecanvas.com/dynamic-templating/" target="_blank" rel="noopener noreferrer">Dynamic templating</a>
+                    <a href="https://docs.livecanvas.com/woocommerce-shortcodes/" target="_blank" rel="noopener noreferrer">WooCommerce shortcodes</a>
+                </span>
+            </span>
+        </span>
+
+        <span class="lc-editor-window-utility-actions" role="group" aria-label="Window actions">
+            <button type="button" class="lc-editor-repaint-preview" data-tooltip="Refreshes the preview, useful after changing JavaScript." aria-label="Repaint: refresh the preview">
+                <span class="fa fa-refresh" aria-hidden="true"></span>
+                <span class="lc-editor-repaint-label">Repaint</span>
+            </button>
+            <button type="button" class="lc-editor-close-custom" title="Close code editor" aria-label="Close code editor">
+                <span class="fa fa-close" aria-hidden="true"></span>
+            </button>
+        </span>
+
+        <a href="#" class="lc-editor-close" hidden></a>
     </div>
 </div>
 
-<div id="lc-html-editor"></div>
+<div id="lc-html-editor" role="tabpanel" aria-labelledby="html-tab"></div>
 
-<div id="lc-css-editor"></div>
+<div id="lc-css-editor" role="tabpanel" aria-labelledby="css-tab"></div>
 
-<div id="lc-js-editor"></div>
+<div id="lc-js-editor" role="tabpanel" aria-labelledby="js-tab"></div>
 
+<nav class="lc-editor-breadcrumb only-for-html" aria-label="Selected HTML element path"></nav>

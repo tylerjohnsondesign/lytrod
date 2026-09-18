@@ -552,7 +552,9 @@ class WPMenuEditor extends MenuEd_ShadowPluginFramework {
 
 			$this->module_load_state[$id] = self::MODULE_STATE_LOADING;
 
-			include ($module['path']);
+			if ( !empty($module['path']) ) {
+				include($module['path']);
+			}
 			if ( !empty($module['className']) ) {
 				$instance = new $module['className']($this);
 				$this->loaded_modules[$id] = $instance;
@@ -727,7 +729,7 @@ class WPMenuEditor extends MenuEd_ShadowPluginFramework {
 			&& !$this->menu_structure_feature->isCustomizationDisabled()
 		) {
 			//Convert our custom menu to the $menu + $submenu structure used by WP.
-			//Note: This method sets up multiple internal fields and may cause side-effects.
+			//Note: This method sets up multiple internal fields and may cause side effects.
 			$this->user_cap_cache_enabled = true;
 			$this->build_custom_wp_menu($this->merged_custom_menu['tree']);
 			$this->user_cap_cache_enabled = false;
@@ -3355,6 +3357,10 @@ class WPMenuEditor extends MenuEd_ShadowPluginFramework {
 	 * @param array $extra_wrap_classes Additional CSS classes to add to the page wrapper.
 	 */
 	public function display_settings_page_header($extra_wrap_classes = []) {
+		if ( !$this->is_pro_version() ) {
+			$this->output_upgrade_to_pro_button_script();
+		}
+
 		$wrap_classes = array('wrap');
 		if ( $this->is_pro_version() ) {
 			$wrap_classes[] = 'ame-is-pro-version';
@@ -3445,6 +3451,25 @@ class WPMenuEditor extends MenuEd_ShadowPluginFramework {
 		$db_option_name = $this->option_name;
 
 		require dirname(__FILE__) . '/settings-page.php';
+	}
+
+	private function output_upgrade_to_pro_button_script() {
+		//Output the JS that adds the "Upgrade to Pro" button to the screen options area.
+		?>
+		<script type="text/javascript">
+			(function ($) {
+				let screenLinks = $('#screen-meta-links');
+				if (screenLinks.length <= 0) {
+					 screenLinks = $('<div id="screen-meta-links"></div>').prependTo('#wpbody-content');
+				}
+				screenLinks.append(
+					'<div id="ws-pro-version-notice" class="custom-screen-meta-link-wrap">' +
+					'<a href="https://adminmenueditor.com/upgrade-to-pro/?utm_source=Admin%2BMenu%2BEditor%2Bfree&utm_medium=text_link&utm_content=top_upgrade_link&utm_campaign=Plugins" id="ws-pro-version-notice-link" class="show-settings custom-screen-meta-link" target="_blank" title="View Pro version details">Upgrade to Pro</a>' +
+					'</div>'
+				);
+			})(jQuery);
+		</script>
+		<?php
 	}
 
 	/**
@@ -5351,10 +5376,10 @@ class WPMenuEditor extends MenuEd_ShadowPluginFramework {
 				'title' => 'Navigation Menu Visibility',
 			),
 			'table-columns' => [
-				'relativePath'       => 'extras/modules/table-columns/table-columns.php',
+				'relativePath'       => 'extras/modules/table-columns/TableColumnsModule.php',
 				'className'          => '\\YahnisElsts\\AdminMenuEditor\\TableColumns\\TableColumnsModule',
-				'title'              => 'Table Columns',
-				'requiredPhpVersion' => '5.6',
+				'title'              => 'Table Elements',
+				'requiredPhpVersion' => '7.4',
 			],
 			'redirector' => array(
 				'relativePath' => 'modules/redirector/redirector.php',
@@ -5540,7 +5565,7 @@ class WPMenuEditor extends MenuEd_ShadowPluginFramework {
 				$label,
 				array($category),
 				$parent,
-				isset($item['grant_access']) ? $item['grant_access'] : array(),
+				$item['grant_access'] ?? array(),
 				'admin-menu'
 			);
 
@@ -5613,6 +5638,10 @@ class WPMenuEditor extends MenuEd_ShadowPluginFramework {
 	private function update_hideable_menu_items($hideableItems, &$menus, $level) {
 		$hasChanged = false;
 
+		$isNotTrue = function($value) {
+			return ($value !== true);
+		};
+
 		//Iterate over all admin menus and find the corresponding hideable items.
 		//We could do it the other way around, but parsing IDs is more complex.
 		foreach ($menus as &$menuItem) {
@@ -5620,7 +5649,21 @@ class WPMenuEditor extends MenuEd_ShadowPluginFramework {
 			if ( isset($hideableItems[$id]) ) {
 				$settings = $hideableItems[$id];
 				$newAccess = !empty($settings['enabled']) ? $settings['enabled'] : array();
-				$oldAccess = isset($menuItem['grant_access']) ? $menuItem['grant_access'] : array();
+				$oldAccess = $menuItem['grant_access'] ?? array();
+
+				//Easy Hide cannot explicitly enable access to menu items. This is to prevent a bug
+				//where a user might unintentionally grant a role access by checking and then unchecking
+				//an item. Therefore, throw away any "true" values in the new list.
+				$newAccess = array_filter($newAccess, $isNotTrue);
+
+				//Easy Hide also shouldn't overwrite existing "true" values with "null". While these
+				//are often equivalent, "true" has a special meaning in the menu editor (explicitly enabled),
+				//and losing that setting can cause confusion.
+				foreach($oldAccess as $key => $value) {
+					if ( ($value === true) && !isset($newAccess[$key]) ) {
+						$newAccess[$key] = true;
+					}
+				}
 
 				$changes1 = array_diff_assoc($oldAccess, $newAccess);
 				$changes2 = array_diff_assoc($newAccess, $oldAccess);

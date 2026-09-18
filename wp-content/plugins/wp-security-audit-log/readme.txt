@@ -5,8 +5,8 @@ License: GPLv3
 License URI: https://www.gnu.org/licenses/gpl.html
 Tags: activity log, event log, user tracking, logger, history 
 Requires at least: 5.5
-Tested up to: 6.9.4
-Stable tag: 5.6.3
+Tested up to: 7.1
+Stable tag: 5.6.6
 Requires PHP: 7.4
 
 The #1 user-rated activity log plugin for event logging, activity monitoring and change tracking.
@@ -239,18 +239,21 @@ These capabilities make WP Activity Log a **comprehensive solution for site secu
 
 == Changelog ==
 
-= 5.6.3 (2026-04-28) =
+= 5.6.6 (2026-08-24) =
 
- * **Plugin improvements & Enhancements**
-	 * Improved deactivation feedback data collection with additional logic checks.
-	 * Improved translation support for JavaScript strings, ensuring all plugin text in JS files is available for translation.
-	 * Updated the jquery-validation library to the latest version 1.22.1.
-	 * Updated developer dependencies and resolved flagged security advisories to keep the codebase aligned with current security standards.
-	 * Updated links and help text in the plugin's Help & Contact Us page.
+ * **Functionality & plugin improvements**
+
+	 *  Improved username search queries by using WordPress prepared statements.
+	 *  Replaced `json_encode()` with `wp_json_encode()` in Search extension AJAX responses for better character encoding support.
+	 *  Made connection validation messages translatable by passing them to JavaScript through WordPress localization.
+	 *  Updated the PHP_CodeSniffer development dependency to version 3.13.6.
+	 *  Improved order editor link handling by applying WordPress URL escaping.
+	 *  Added automated validation for Free builds to prevent Premium-only files or functionality from being included.
 
  * **Bug fixes**
-	 * Fixed event ID 4002 which was not capturing secondary role changes correctly.
-	 * Fixed additional minor warnings appearing in certain server environments.
-	 * Fixed IP address lookup links in the activity log viewer now correctly pointing to the lookup provider's website.
+
+	 *  Fixed compatibility with WP 7.1 by addressing a fatal `strtolower()` error in the Log Viewer on PHP 8.2 and 8.3 when another plugin or theme registers a non-string callback identifier for admin notices.
+	 *  Fixed a fatal error on the Reports page and other file operations when WordPress cannot initialize its filesystem. The affected page now remains available and displays a clear warning.
+	 *  Fixed the file append option incorrectly replacing existing file contents instead of adding new content.
 
 Refer to the complete [plugin changelog](https://melapress.com/support/kb/wp-activity-log-plugin-changelog/?utm_source=wp+repo&utm_medium=repo+link&utm_campaign=wordpress_org&utm_content=wsal) for more detailed information about what was new, improved and fixed in previous version updates of WP Activity Log.

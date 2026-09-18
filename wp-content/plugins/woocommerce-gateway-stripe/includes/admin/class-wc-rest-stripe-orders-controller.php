@@ -117,6 +117,11 @@ class WC_REST_Stripe_Orders_Controller extends WC_Stripe_REST_Base_Controller {
 		}
 
 		// Validate order status before creating customer.
+		/**
+		 * Filters order statuses that cannot be used when creating a Stripe customer from an order.
+		 *
+		 * @param string[] $disallowed_order_statuses Order statuses that cannot create a customer.
+		 */
 		$disallowed_order_statuses = apply_filters( 'wc_stripe_create_customer_disallowed_order_statuses', [ OrderStatus::COMPLETED, OrderStatus::CANCELLED, OrderStatus::REFUNDED, OrderStatus::FAILED ] );
 		if ( $order->has_status( $disallowed_order_statuses ) ) {
 			return new WP_Error( 'wc_stripe_invalid_order_status', __( 'Invalid order status', 'woocommerce-gateway-stripe' ), [ 'status' => 400 ] );
@@ -169,7 +174,7 @@ class WC_REST_Stripe_Orders_Controller extends WC_Stripe_REST_Base_Controller {
 			$order     = wc_get_order( $order_id );
 
 			// Check that order exists before capturing payment.
-			if ( ! $order ) {
+			if ( ! $order instanceof WC_Order ) {
 				return new WP_Error( 'wc_stripe_missing_order', __( 'Order not found', 'woocommerce-gateway-stripe' ), [ 'status' => 404 ] );
 			}
 
@@ -189,6 +194,14 @@ class WC_REST_Stripe_Orders_Controller extends WC_Stripe_REST_Base_Controller {
 			// Ensure that intent can be captured.
 			if ( ! in_array( $intent->status, [ WC_Stripe_Intent_Status::PROCESSING, WC_Stripe_Intent_Status::REQUIRES_CAPTURE ], true ) ) {
 				return new WP_Error( 'wc_stripe_payment_uncapturable', __( 'The payment cannot be captured', 'woocommerce-gateway-stripe' ), [ 'status' => 409 ] );
+			}
+
+			// Store IPP channel from intent metadata for POS identification.
+			$order_helper     = WC_Stripe_Order_Helper::get_instance();
+			$ipp_channel      = $intent->metadata->ipp_channel ?? '';
+			$allowed_channels = [ 'mobile_pos', 'mobile_store_management' ];
+			if ( in_array( $ipp_channel, $allowed_channels, true ) ) {
+				$order_helper->update_stripe_ipp_channel( $order, $ipp_channel );
 			}
 
 			// Update order with payment method and intent details.

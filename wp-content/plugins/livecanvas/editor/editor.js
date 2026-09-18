@@ -298,76 +298,656 @@ $(document).ready(function ($) {
         previewFrame.contents().find("#lc_script_tag").html(new_js);
     }); //end onChange
 
-    // MAKE CODE EDITORS WINDOW RESIZABLE
+    // Code editor window
     const ele = document.querySelector('#lc-code-editor-window');
-    const eleTb = document.querySelector('.lc-editor-menubar-draghandle');
-    const lcEditorCookie = 'lc-editor-height';
-    const lcEditorHeight = editorPrefsObj[lcEditorCookie];
-    let startY = 0;
-    let startHeight = 0;
 
-    // Create and append overlay div
-    const overlay = Object.assign(document.createElement('div'), {
-        style: `
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        z-index: 9999;
-        background: rgba(0, 0, 0, 0);
-        display: none;
-    `,
-    });
-    document.body.appendChild(overlay);
-
-    ele.style.maxHeight = '100vh';
-    if (lcEditorHeight) ele.style.height = `${lcEditorHeight}px`;
-
-    const mouseDownHandler = e => {
-        overlay.style.display = 'block';
-        overlay.style.pointerEvents = 'all';
-        startY = e.clientY;
-        startHeight = parseInt(window.getComputedStyle(ele).height, 10);
-        ele.style.minHeight = '15vh';
-        ele.style.maxHeight = '100vh';
-        document.addEventListener('mousemove', mouseMoveHandler);
-        document.addEventListener('mouseup', mouseUpHandler);
-        e.preventDefault();
+    const lcCodeEditorWindowLayoutCookie = "lc-code-editor-window-layout";
+    const lcCodeEditorLayoutModeCookie = "lc-code-editor-layout-mode";
+    const lcCodeEditorSplitWidthCookie = "lc-code-editor-split-width";
+    const lcCodeEditorSplitHeightCookie = "lc-code-editor-split-height";
+    let codeEditorPopout = null;
+    let codeEditorPopoutRestoring = false;
+    let codeEditorPopoutSyncHandlers = [];
+    const lcCodeEditorLayoutModes = {
+        splitH: "split-h",
+        splitV: "split-v",
+        custom: "custom",
+        external: "external"
     };
 
-    const mouseMoveHandler = e => {
-        const newHeight = startHeight - (e.clientY - startY);
-        if (newHeight >= window.innerHeight * 0.15 && newHeight <= window.innerHeight) {
-            ele.style.height = `${newHeight}px`;
-            setEditorPreference(lcEditorCookie, newHeight);
+    function normalizeCodeEditorLayoutPreferences() {
+        let preferencesChanged = false;
+
+        if (!editorPrefsObj[lcCodeEditorLayoutModeCookie]) {
+            if (editorPrefsObj["lc-code-editor-split-mode"] === true || editorPrefsObj["lc-code-editor-side-mode"] === true) {
+                editorPrefsObj[lcCodeEditorLayoutModeCookie] = lcCodeEditorLayoutModes.splitH;
+            } else {
+                editorPrefsObj[lcCodeEditorLayoutModeCookie] = lcCodeEditorLayoutModes.splitV;
+            }
+            preferencesChanged = true;
+        } else if (editorPrefsObj[lcCodeEditorLayoutModeCookie] === "split") {
+            editorPrefsObj[lcCodeEditorLayoutModeCookie] = lcCodeEditorLayoutModes.splitH;
+            preferencesChanged = true;
+        } else if (editorPrefsObj[lcCodeEditorLayoutModeCookie] === "dock") {
+            editorPrefsObj[lcCodeEditorLayoutModeCookie] = lcCodeEditorLayoutModes.splitV;
+            preferencesChanged = true;
+        } else if (!Object.values(lcCodeEditorLayoutModes).includes(editorPrefsObj[lcCodeEditorLayoutModeCookie])) {
+            editorPrefsObj[lcCodeEditorLayoutModeCookie] = lcCodeEditorLayoutModes.splitV;
+            preferencesChanged = true;
         }
-        e.preventDefault();
-        e.stopPropagation();
-    };
 
-    const mouseUpHandler = () => {
-        overlay.style.display = 'none';
-        overlay.style.pointerEvents = 'none';
+        if (!editorPrefsObj[lcCodeEditorSplitWidthCookie] && editorPrefsObj["lc-code-editor-side-width"]) {
+            editorPrefsObj[lcCodeEditorSplitWidthCookie] = editorPrefsObj["lc-code-editor-side-width"];
+            preferencesChanged = true;
+        }
+
+        ["lc-code-editor-split-mode", "lc-code-editor-side-mode", "lc-code-editor-side-width"].forEach(function (legacyPreference) {
+            if (legacyPreference in editorPrefsObj) {
+                delete editorPrefsObj[legacyPreference];
+                preferencesChanged = true;
+            }
+        });
+
+        if (preferencesChanged) {
+            localStorage.setItem("lc_editor_prefs_json", JSON.stringify(editorPrefsObj));
+        }
+    }
+
+    normalizeCodeEditorLayoutPreferences();
+
+    function resizeCodeEditors() {
         lc_html_editor.resize();
         lc_css_editor.resize();
-        document.removeEventListener('mousemove', mouseMoveHandler);
-        document.removeEventListener('mouseup', mouseUpHandler);
+        lc_js_editor.resize();
+        positionResourcesPanel(document);
+    }
+
+    function resizeCodeEditorsAfterLayout() {
+        resizeCodeEditors();
+        requestAnimationFrame(resizeCodeEditors);
+        setTimeout(resizeCodeEditors, 80);
+    }
+
+    function getCodeEditorWindowLayout() {
+        const layout = editorPrefsObj[lcCodeEditorWindowLayoutCookie] || {};
+        const width = parseInt(layout.width, 10) || window.innerWidth;
+        const height = parseInt(layout.height, 10) || Math.round(window.innerHeight * 0.5);
+        const x = parseInt(layout.x, 10);
+        const y = parseInt(layout.y, 10);
+
+        return {
+            width: Math.min(width, window.innerWidth),
+            height: Math.min(height, window.innerHeight - parseInt(getComputedStyle(document.documentElement).getPropertyValue("--maintoolbar-height"), 10)),
+            x: Number.isFinite(x) ? Math.max(0, Math.min(x, window.innerWidth - width)) : 0,
+            y: Number.isFinite(y) ? Math.max(0, Math.min(y, window.innerHeight - height)) : window.innerHeight - height
+        };
+    }
+
+    function getMainToolbarHeight() {
+        return parseInt(getComputedStyle(document.documentElement).getPropertyValue("--maintoolbar-height"), 10);
+    }
+
+    function getCodeEditorLayoutMode() {
+        const mode = editorPrefsObj[lcCodeEditorLayoutModeCookie] || lcCodeEditorLayoutModes.splitV;
+        return Object.values(lcCodeEditorLayoutModes).includes(mode) ? mode : lcCodeEditorLayoutModes.splitV;
+    }
+
+    function setCodeEditorLayoutMode(mode) {
+        const isValidMode = Object.values(lcCodeEditorLayoutModes).includes(mode);
+        const layoutMode = isValidMode ? mode : lcCodeEditorLayoutModes.splitV;
+        $("body")
+            .toggleClass("lc-code-editor-split-mode", layoutMode === lcCodeEditorLayoutModes.splitH)
+            .toggleClass("lc-code-editor-split-v-mode", layoutMode === lcCodeEditorLayoutModes.splitV);
+        setEditorPreference(lcCodeEditorLayoutModeCookie, layoutMode);
+        return layoutMode;
+    }
+
+    function getCodeEditorFloatLayout() {
+        const layout = getCodeEditorWindowLayout();
+        const savedLayout = editorPrefsObj[lcCodeEditorWindowLayoutCookie];
+        if (savedLayout && Number.isFinite(parseInt(savedLayout.width, 10)) && Number.isFinite(parseInt(savedLayout.height, 10))) {
+            return layout;
+        }
+
+        layout.width = Math.min(550, window.innerWidth);
+        layout.x = Math.round((window.innerWidth - layout.width) / 2);
+        return layout;
+    }
+
+    function getCodeEditorSplitWidth() {
+        const width = parseInt(editorPrefsObj[lcCodeEditorSplitWidthCookie], 10) || Math.round(window.innerWidth / 2);
+        const minimum = Math.min(320, window.innerWidth);
+        return Math.max(minimum, Math.min(width, Math.max(minimum, window.innerWidth - 320)));
+    }
+
+    function setCodeEditorSplitWidth(width) {
+        const minimum = Math.min(320, window.innerWidth);
+        const splitWidth = Math.max(minimum, Math.min(Math.round(width), Math.max(minimum, window.innerWidth - 320)));
+        document.documentElement.style.setProperty("--lc-code-editor-split-width", splitWidth + "px");
+        setEditorPreference(lcCodeEditorSplitWidthCookie, splitWidth);
+        return splitWidth;
+    }
+
+    function getCodeEditorSplitHeight() {
+        const availableHeight = window.innerHeight - getMainToolbarHeight();
+        const height = parseInt(editorPrefsObj[lcCodeEditorSplitHeightCookie], 10) || Math.round(window.innerHeight * 0.5);
+        const minimum = Math.min(240, availableHeight);
+        return Math.max(minimum, Math.min(height, Math.max(minimum, availableHeight - 160)));
+    }
+
+    function setCodeEditorSplitHeight(height, persist) {
+        const availableHeight = window.innerHeight - getMainToolbarHeight();
+        const minimum = Math.min(240, availableHeight);
+        const splitHeight = Math.max(minimum, Math.min(Math.round(height), Math.max(minimum, availableHeight - 160)));
+        document.documentElement.style.setProperty("--lc-code-editor-split-height", splitHeight + "px");
+        if (persist !== false) setEditorPreference(lcCodeEditorSplitHeightCookie, splitHeight);
+        return splitHeight;
+    }
+
+    const codeEditorWindowManager = new LiveCanvasCodeEditorWindowManager({
+        element: ele,
+        dragHandle: ele.querySelector(".lc-code-editor-drag-handle"),
+        dragSurface: ele.querySelector(".lc-editor-menubar"),
+        getToolbarHeight: getMainToolbarHeight,
+        getFloatLayout: getCodeEditorFloatLayout,
+        setFloatLayout: function (layout) {
+            setEditorPreference(lcCodeEditorWindowLayoutCookie, layout);
+        },
+        getSplitWidth: getCodeEditorSplitWidth,
+        setSplitWidth: setCodeEditorSplitWidth,
+        getSplitHeight: getCodeEditorSplitHeight,
+        setSplitHeight: setCodeEditorSplitHeight,
+        onLayout: resizeCodeEditors
+    });
+    window.lcCodeEditorWindowManager = codeEditorWindowManager;
+
+    function syncCodeEditorWindowActions() {
+        const mode = getCodeEditorLayoutMode();
+        $(".lc-editor-layout-choice").each(function () {
+            const isActive = $(this).data("layout") === mode;
+            $(this)
+                .toggleClass("is-active", isActive)
+                .attr("aria-pressed", isActive ? "true" : "false");
+        });
+    }
+
+    function syncCodeEditorTabState(tabs, activeTab) {
+        tabs.forEach(function (tab) {
+            const isActive = tab === activeTab;
+            tab.classList.toggle("active", isActive);
+            tab.setAttribute("aria-selected", isActive ? "true" : "false");
+            tab.setAttribute("tabindex", isActive ? "0" : "-1");
+        });
+    }
+
+    function showCodeEditorPanel(panelSelector) {
+        $("#lc-html-editor, #lc-css-editor, #lc-js-editor").hide();
+        $(panelSelector).show();
+    }
+
+    function handleCodeEditorTabKeydown(event, tabs, activateTab) {
+        const supportedKeys = ["ArrowLeft", "ArrowRight", "Home", "End"];
+        if (!supportedKeys.includes(event.key)) return;
+
+        const currentIndex = tabs.indexOf(event.target);
+        if (currentIndex < 0) return;
+        event.preventDefault();
+
+        let nextIndex = currentIndex;
+        if (event.key === "ArrowLeft") nextIndex = (currentIndex - 1 + tabs.length) % tabs.length;
+        else if (event.key === "ArrowRight") nextIndex = (currentIndex + 1) % tabs.length;
+        else if (event.key === "Home") nextIndex = 0;
+        else if (event.key === "End") nextIndex = tabs.length - 1;
+
+        const nextTab = tabs[nextIndex];
+        activateTab(nextTab);
+        nextTab.focus();
+    }
+
+    function setCodeEditorViewOptionsOpen(isOpen) {
+        $("#lc-editor-view-options-panel").prop("hidden", !isOpen);
+        $(".lc-editor-view-options")
+            .toggleClass("is-open", isOpen)
+            .find(".lc-editor-view-options-trigger")
+            .attr("aria-expanded", isOpen ? "true" : "false");
+    }
+
+    function positionResourcesPanel(ownerDocument) {
+        const panel = ownerDocument.getElementById("lc-editor-resources-panel");
+        if (!panel || panel.hidden) return;
+        const trigger = ownerDocument.querySelector(".lc-editor-resources-trigger");
+        const viewport = ownerDocument.defaultView;
+        const rect = trigger.getBoundingClientRect();
+        const toolbar = ownerDocument.getElementById("maintoolbar");
+        const topLimit = toolbar ? Math.max(0, toolbar.getBoundingClientRect().bottom) : 0;
+        const below = Math.max(0, viewport.innerHeight - rect.bottom - 15);
+        const above = Math.max(0, rect.top - topLimit - 15);
+        const openAbove = panel.scrollHeight > below && above > below;
+        panel.classList.toggle("is-above", openAbove);
+        panel.style.maxHeight = (openAbove ? above : below) + "px";
+    }
+
+    function setCodeEditorResourcesOpen(isOpen) {
+        $("#lc-editor-resources-panel").prop("hidden", !isOpen);
+        $(".lc-editor-resources")
+            .toggleClass("is-open", isOpen)
+            .find(".lc-editor-resources-trigger")
+            .attr("aria-expanded", isOpen ? "true" : "false");
+        if (isOpen) positionResourcesPanel(document);
+    }
+
+    function isCodeEditorWindowOpen() {
+        return !!codeEditorPopout || codeEditorWindowManager.isOpen();
+    }
+
+    function showCodeEditorPopoutMessage(message, title) {
+        swal({
+            title: title || "External display unavailable",
+            text: message,
+            icon: "info"
+        });
+    }
+
+    function removeCodeEditorPopoutSyncHandlers() {
+        codeEditorPopoutSyncHandlers.forEach(function (binding) {
+            binding.session.off("change", binding.handler);
+        });
+        codeEditorPopoutSyncHandlers = [];
+    }
+
+    function restoreCodeEditorFromPopout(reopenEditor) {
+        if (!codeEditorPopout || codeEditorPopoutRestoring) return;
+        codeEditorPopoutRestoring = true;
+        const popout = codeEditorPopout;
+        codeEditorPopout = null;
+        removeCodeEditorPopoutSyncHandlers();
+        if (!popout.closed) popout.close();
+        codeEditorPopoutRestoring = false;
+
+        if (reopenEditor) openCodeEditorWindow();
+        else {
+            $(ele).hide();
+            $("body").removeClass("lc-bottom-editor-is-shown");
+            $("#toggle-code-editor").removeClass("is-active");
+        }
+    }
+
+    async function getExternalCodeEditorScreen() {
+        if (!window.isSecureContext || typeof window.getScreenDetails !== "function") return null;
+        if (document.permissionsPolicy && !document.permissionsPolicy.allowsFeature("window-management")) return null;
+
+        try {
+            const screenDetails = await window.getScreenDetails();
+            return screenDetails.screens.find(function (candidate) {
+                return candidate !== screenDetails.currentScreen && (
+                    candidate.left !== screenDetails.currentScreen.left ||
+                    candidate.top !== screenDetails.currentScreen.top ||
+                    candidate.width !== screenDetails.currentScreen.width ||
+                    candidate.height !== screenDetails.currentScreen.height
+                );
+            }) || null;
+        } catch (error) {
+            return null;
+        }
+    }
+
+    async function placeCodeEditorPopout(popout) {
+        window.focus();
+        const externalScreen = await getExternalCodeEditorScreen();
+        if (popout.closed) return;
+        if (!externalScreen) {
+            popout.focus();
+            return;
+        }
+        try {
+            popout.moveTo(externalScreen.availLeft, externalScreen.availTop);
+            popout.resizeTo(externalScreen.availWidth, externalScreen.availHeight);
+        } catch (error) {
+            // Placement is a progressive enhancement; the popup remains usable.
+        }
+        popout.focus();
+    }
+
+    async function popOutCodeEditor() {
+        if (codeEditorPopout && !codeEditorPopout.closed) {
+            codeEditorPopout.focus();
+            return;
+        }
+
+        const features = [
+            "popup=yes",
+            "left=" + (Number.isFinite(window.screen.availLeft) ? window.screen.availLeft : window.screenLeft || 0),
+            "top=" + (Number.isFinite(window.screen.availTop) ? window.screen.availTop : window.screenTop || 0),
+            "width=" + window.screen.availWidth,
+            "height=" + window.screen.availHeight
+        ].join(",");
+        const popout = window.open("", "lc-code-editor-popout", features);
+        if (!popout) {
+            setCodeEditorLayoutMode(lcCodeEditorLayoutModes.custom);
+            codeEditorWindowManager.open(lcCodeEditorLayoutModes.custom);
+            syncCodeEditorWindowActions();
+            showCodeEditorPopoutMessage("The code editor window was blocked. Allow pop-ups for this site and try again.");
+            return;
+        }
+
+        codeEditorWindowManager.close();
+
+        codeEditorPopout = popout;
+        placeCodeEditorPopout(popout);
+        const aceScript = document.querySelector('script[src*="/ace/"][src$="ace.js"]');
+        const aceScriptUrl = aceScript ? aceScript.src : "";
+        if (!aceScriptUrl) {
+            restoreCodeEditorFromPopout(false);
+            showCodeEditorPopoutMessage("The pop-out editor could not find the Ace editor library.");
+            return;
+        }
+        const toolbarMarkup = document.querySelector(".lc-editor-menubar").outerHTML;
+        const stylesheetMarkup = Array.from(document.querySelectorAll('link[rel="stylesheet"]')).map(function (stylesheet) {
+            return '<link rel="stylesheet" href="' + stylesheet.href.replace(/&/g, "&amp;").replace(/"/g, "&quot;") + '">';
+        }).join("");
+        popout.document.open();
+        popout.document.write('<!doctype html><html><head><title>LiveCanvas Code Editor</title>' + stylesheetMarkup + '<style>' +
+            'html,body{width:100%;height:100%;margin:0;overflow:hidden;background:#151724}' +
+            '#lc-code-editor-winbox{width:100%;height:100%;display:flex;flex-direction:column}' +
+            '#lc-code-editor-winbox .wb-header{position:relative!important;height:38px!important;min-height:38px;cursor:default!important}' +
+            '#lc-code-editor-winbox .lc-editor-menubar{height:38px;min-height:38px;background:#151724;pointer-events:auto}' +
+            '#lc-code-editor-winbox .lc-editor-menubar-tools{padding-right:8px}' +
+            '#lc-code-editor-winbox .lc-code-editor-drag-handle{display:none!important}' +
+            '#lc-code-editor-winbox .editor{display:none;flex:1 1 auto;width:100%;min-height:0}' +
+            '#lc-code-editor-winbox .editor.active{display:block}' +
+            '#lc-code-editor-winbox .lc-editor-breadcrumb{position:relative;flex:0 0 28px}' +
+            '</style></head><body><div id="lc-code-editor-winbox" class="my-theme"><div class="wb-header">' + toolbarMarkup + '</div>' +
+            '<div id="popout-html" class="editor active"></div><div id="popout-css" class="editor"></div><div id="popout-js" class="editor"></div>' +
+            '<nav class="lc-editor-breadcrumb only-for-html" aria-label="Selected HTML element path"></nav>' +
+            '</div><script src="' + aceScriptUrl.replace(/&/g, "&amp;").replace(/"/g, "&quot;") + '"><\/script></body></html>');
+        popout.document.close();
+        popout.addEventListener("beforeunload", function () {
+            restoreCodeEditorFromPopout(false);
+        });
+        $("body").addClass("lc-bottom-editor-is-shown");
+        $("#toggle-code-editor").addClass("is-active");
+        const loadedAceScript = popout.document.querySelector('script[src]');
+        loadedAceScript.addEventListener("load", function () {
+            if (!codeEditorPopout || codeEditorPopout !== popout) return;
+            const sourceEditors = [lc_html_editor, lc_css_editor, lc_js_editor];
+            const names = ["html", "css", "js"];
+            let synchronizing = false;
+            const fontSize = parseInt(editorPrefsObj.editor_fontsize, 10) || 13;
+            const popupDocument = popout.document;
+
+            const popupEditors = names.map(function (name, index) {
+                const popupEditor = popout.ace.edit("popout-" + name);
+                const sourceEditor = sourceEditors[index];
+                popupEditor.setTheme(sourceEditor.getTheme());
+                popupEditor.session.setMode(sourceEditor.session.getMode().$id);
+                popupEditor.setFontSize(fontSize);
+                popupEditor.setValue(sourceEditor.getValue(), -1);
+                popupEditor.session.on("change", function () {
+                    if (synchronizing || sourceEditor.getValue() === popupEditor.getValue()) return;
+                    synchronizing = true;
+                    sourceEditor.setValue(popupEditor.getValue(), 1);
+                    synchronizing = false;
+                });
+                const syncFromSource = function () {
+                    if (synchronizing || popupEditor.getValue() === sourceEditor.getValue()) return;
+                    synchronizing = true;
+                    const cursor = popupEditor.getCursorPosition();
+                    popupEditor.setValue(sourceEditor.getValue(), -1);
+                    popupEditor.moveCursorToPosition(cursor);
+                    synchronizing = false;
+                };
+                sourceEditor.session.on("change", syncFromSource);
+                codeEditorPopoutSyncHandlers.push({ session: sourceEditor.session, handler: syncFromSource });
+                return popupEditor;
+            });
+
+            function activatePopupEditor(name) {
+                $("#" + name + "-tab").trigger("click");
+                popupDocument.querySelectorAll(".editor").forEach(function (item) {
+                    item.classList.remove("active");
+                });
+                const popupTabs = Array.from(popupDocument.querySelectorAll(".code-tabber [role='tab']"));
+                syncCodeEditorTabState(popupTabs, popupDocument.getElementById(name + "-tab"));
+                popupDocument.getElementById("popout-" + name).classList.add("active");
+                popupDocument.querySelector(".lc-editor-breadcrumb").style.display = name === "html" ? "flex" : "none";
+                const editorIndex = names.indexOf(name);
+                popupEditors[editorIndex].resize();
+                popupEditors[editorIndex].focus();
+            }
+
+            names.forEach(function (name) {
+                const popupTab = popupDocument.getElementById(name + "-tab");
+                popupTab.setAttribute("aria-controls", "popout-" + name);
+                popupTab.addEventListener("click", function (event) {
+                    event.preventDefault();
+                    activatePopupEditor(name);
+                });
+            });
+            popupDocument.querySelector(".code-tabber").addEventListener("keydown", function (event) {
+                const popupTabs = Array.from(this.querySelectorAll("[role='tab']"));
+                handleCodeEditorTabKeydown(event, popupTabs, function (tab) {
+                    activatePopupEditor(tab.id.replace("-tab", ""));
+                });
+            });
+
+            popupDocument.querySelectorAll(".lc-editor-layout-choice").forEach(function (button) {
+                button.addEventListener("click", function (event) {
+                    event.preventDefault();
+                    const layout = button.dataset.layout;
+                    if (layout === lcCodeEditorLayoutModes.external) {
+                        popout.focus();
+                        return;
+                    }
+                    if (layout === lcCodeEditorLayoutModes.custom) {
+                        setEditorPreference(lcCodeEditorWindowLayoutCookie, getCodeEditorFloatLayout());
+                    } else {
+                        $(".close-sidepanel").click();
+                    }
+                    setCodeEditorLayoutMode(layout);
+                    restoreCodeEditorFromPopout(true);
+                });
+            });
+            const popupPopoutButton = popupDocument.querySelector('.lc-editor-layout-choice[data-layout="external"]');
+            popupDocument.querySelectorAll(".lc-editor-layout-choice").forEach(function (button) {
+                button.classList.remove("is-active");
+                button.setAttribute("aria-pressed", "false");
+            });
+            popupPopoutButton.classList.add("is-active");
+            popupPopoutButton.setAttribute("aria-pressed", "true");
+
+            renderHtmlEditorBreadcrumb(popupDocument);
+            popupDocument.querySelector(".lc-editor-breadcrumb").addEventListener("click", function (event) {
+                const item = event.target.closest(".lc-editor-breadcrumb-item");
+                if (!item || item.getAttribute("aria-current") === "page") return;
+                event.preventDefault();
+                navigateHtmlEditorToSelector(item.dataset.selector);
+                renderHtmlEditorBreadcrumb(popupDocument);
+                popout.focus();
+            });
+            popupDocument.querySelector(".lc-editor-close-custom").addEventListener("click", function (event) {
+                event.preventDefault();
+                closeCodeEditorWindow();
+            });
+            popupDocument.querySelector(".lc-editor-repaint-preview").addEventListener("click", function (event) {
+                event.preventDefault();
+                repaintPreview();
+                popout.focus();
+            });
+
+            const popupSettings = popupDocument.querySelector(".lc-editor-view-options");
+            const popupResources = popupDocument.querySelector(".lc-editor-resources");
+            function togglePopupPanel(container, open) {
+                const panel = container.querySelector("[id$='-panel']");
+                container.classList.toggle("is-open", open);
+                container.querySelector("button").setAttribute("aria-expanded", open ? "true" : "false");
+                panel.hidden = !open;
+                if (open && container === popupResources) positionResourcesPanel(popupDocument);
+            }
+            popout.addEventListener("resize", function () { positionResourcesPanel(popupDocument); });
+            popupSettings.querySelector(".lc-editor-view-options-trigger").addEventListener("click", function (event) {
+                event.stopPropagation();
+                togglePopupPanel(popupResources, false);
+                togglePopupPanel(popupSettings, !popupSettings.classList.contains("is-open"));
+            });
+            popupResources.querySelector(".lc-editor-resources-trigger").addEventListener("click", function (event) {
+                event.stopPropagation();
+                togglePopupPanel(popupSettings, false);
+                togglePopupPanel(popupResources, !popupResources.classList.contains("is-open"));
+            });
+            popupDocument.addEventListener("click", function () {
+                togglePopupPanel(popupSettings, false);
+                togglePopupPanel(popupResources, false);
+            });
+            popupDocument.addEventListener("keydown", function (event) {
+                if (event.key !== "Escape") return;
+                const openContainer = popupSettings.classList.contains("is-open") ? popupSettings : (popupResources.classList.contains("is-open") ? popupResources : null);
+                if (!openContainer) return;
+                togglePopupPanel(popupSettings, false);
+                togglePopupPanel(popupResources, false);
+                openContainer.querySelector("button").focus();
+            });
+            popupSettings.querySelector(".lc-editor-view-options-panel").addEventListener("click", function (event) { event.stopPropagation(); });
+            popupResources.querySelector(".lc-editor-resources-panel").addEventListener("click", function (event) { event.stopPropagation(); });
+
+            const popupTheme = popupDocument.getElementById("lc-editor-theme");
+            const popupFontSize = popupDocument.getElementById("lc-editor-fontsize");
+            const popupTransparency = popupDocument.getElementById("lc-editor-transparency");
+            popupTheme.value = document.getElementById("lc-editor-theme").value;
+            popupFontSize.value = fontSize;
+            popupTransparency.checked = document.getElementById("lc-editor-transparency").checked;
+            popupTheme.addEventListener("change", function () {
+                $("#lc-editor-theme").val(popupTheme.value).trigger("change");
+                popupEditors.forEach(function (editor) { editor.setTheme("ace/theme/" + popupTheme.value); });
+            });
+            popupFontSize.addEventListener("input", function () {
+                const size = Math.max(9, Math.min(24, parseInt(popupFontSize.value, 10) || 13));
+                $("#lc-editor-fontsize").val(size).trigger("input");
+                popupEditors.forEach(function (editor) { editor.setFontSize(size); });
+            });
+            popupTransparency.addEventListener("change", function () {
+                $("#lc-editor-transparency").prop("checked", popupTransparency.checked).trigger("change");
+                popupDocument.getElementById("lc-code-editor-winbox").classList.toggle("lc-opacity-light", popupTransparency.checked);
+            });
+            popupEditors[0].focus();
+        });
+        loadedAceScript.addEventListener("error", function () {
+            restoreCodeEditorFromPopout(false);
+            showCodeEditorPopoutMessage("The pop-out editor could not be loaded. Please try again.");
+        });
+    }
+
+    window.closeCodeEditorWindow = function () {
+        setCodeEditorViewOptionsOpen(false);
+        setCodeEditorResourcesOpen(false);
+        if (codeEditorPopout) {
+            restoreCodeEditorFromPopout(false);
+            initialize_contextual_menus();
+            return;
+        }
+        codeEditorWindowManager.close();
+        $("body").removeClass("lc-bottom-editor-is-shown lc-code-editor-split-mode lc-code-editor-split-v-mode");
+        $("#toggle-code-editor, .lc-editor-window-actions button").removeClass("is-active");
+        resizeCodeEditors();
+        $("#lc-code-editor-window").hide();
+        initialize_contextual_menus();
     };
 
-    eleTb.addEventListener('mousedown', mouseDownHandler);
+    window.openCodeEditorWindow = function () {
+        $("#lc-code-editor-window").removeClass("lc-opacity-light");
+        $("body").addClass("lc-bottom-editor-is-shown");
+        setCodeEditorLayoutMode(getCodeEditorLayoutMode());
+        syncCodeEditorWindowActions();
+
+        if (getCodeEditorLayoutMode() === lcCodeEditorLayoutModes.external) {
+            popOutCodeEditor();
+            return;
+        }
+
+        codeEditorWindowManager.open(getCodeEditorLayoutMode());
+        $("#toggle-code-editor").addClass("is-active");
+        resizeCodeEditorsAfterLayout();
+    };
+
+    window.openMainHtmlCodeEditor = function () {
+        $(".close-sidepanel").click();
+
+        const selector = "main#lc-main";
+        $("#lc-code-editor-window").attr("selector", selector);
+        myConsoleLog("open html editor for: " + selector);
+
+        set_html_editor(getPageHTML(selector));
+        openCodeEditorWindow();
+        $("#html-tab").click();
+        lc_html_editor.focus();
+    };
+
+    function getHtmlEditorBreadcrumbLabel(element) {
+        let label = element.tagName.toLowerCase();
+        if (element.id) return label + "#" + element.id;
+        if (element.classList.length) label += "." + Array.from(element.classList).slice(0, 2).join(".");
+        return label;
+    }
+
+    function renderHtmlEditorBreadcrumb(targetDocument) {
+        targetDocument = targetDocument || document;
+        const breadcrumb = targetDocument.querySelector(".lc-editor-breadcrumb");
+        if (!breadcrumb) return;
+
+        const currentSelector = $("#lc-code-editor-window").attr("selector");
+        let currentElement = currentSelector ? doc.querySelector(currentSelector) : null;
+        const path = [];
+        while (currentElement && currentElement.nodeType === 1) {
+            path.unshift(currentElement);
+            if (currentElement.matches("main#lc-main")) break;
+            currentElement = currentElement.parentElement;
+        }
+
+        breadcrumb.replaceChildren();
+        path.forEach(function (element, index) {
+            if (index) {
+                const separator = targetDocument.createElement("span");
+                separator.className = "lc-editor-breadcrumb-separator";
+                separator.setAttribute("aria-hidden", "true");
+                separator.textContent = ">";
+                breadcrumb.appendChild(separator);
+            }
+            const item = targetDocument.createElement("button");
+            item.type = "button";
+            item.className = "lc-editor-breadcrumb-item";
+            item.dataset.selector = CSSelectorForDoc(element);
+            item.textContent = getHtmlEditorBreadcrumbLabel(element);
+            item.title = "Edit " + item.textContent;
+            if (index === path.length - 1) item.setAttribute("aria-current", "page");
+            breadcrumb.appendChild(item);
+        });
+        breadcrumb.scrollLeft = breadcrumb.scrollWidth;
+    }
+
+    function navigateHtmlEditorToSelector(selector) {
+        const element = selector ? doc.querySelector(selector) : null;
+        if (!element || !element.matches("main#lc-main, main#lc-main *")) return;
+
+        selector = CSSelectorForDoc(element);
+        $("#lc-code-editor-window").attr("selector", selector);
+        set_html_editor(element.matches("main#lc-main") ? getPageHTML(selector) : getPageHTMLOuter(selector));
+        openCodeEditorWindow();
+        lc_html_editor.focus();
+        $("#html-tab").click();
+
+        previewFrame.contents().find(".lc-highlight-currently-editing").removeClass("lc-highlight-currently-editing");
+        previewFrame.contents().find(selector).addClass("lc-highlight-currently-editing");
+        renderHtmlEditorBreadcrumb();
+        if (codeEditorPopout && !codeEditorPopout.closed) renderHtmlEditorBreadcrumb(codeEditorPopout.document);
+    }
 
     //USER CLICKS CODE EDITOR TABBER: INIT CSS PANEL
     $("body").on("click", "#css-tab", function (e) {
         e.preventDefault();
         $(".lc-editor-menubar .only-for-html").hide();
-        $(".code-tabber a.active").removeClass("active");
-        $(this).addClass("active");
-        $("#lc-html-editor").hide();
+        syncCodeEditorTabState(Array.from(this.closest(".code-tabber").querySelectorAll("[role='tab']")), this);
         var css = getPageHTML("#wp-custom-css");
         set_css_editor(css);
-        $("#lc-html-editor").hide();
-        $("#lc-css-editor").show();
+        showCodeEditorPanel("#lc-css-editor");
         lc_css_editor.resize();
 
         $("select#lc-editor-theme option[value=" + the_css_editor_theme + "]").prop('selected', true);
@@ -376,18 +956,13 @@ $(document).ready(function ($) {
     $("body").on("click", "#js-tab", function (e) {
         e.preventDefault();
         $(".lc-editor-menubar .only-for-html").hide();
-        $(".code-tabber a.active").removeClass("active");
-        $(this).addClass("active");
-        $("#lc-html-editor").hide();
-        $("#lc-css-editor").hide();
+        syncCodeEditorTabState(Array.from(this.closest(".code-tabber").querySelectorAll("[role='tab']")), this);
         var js = getPageHTML("#lc_script_tag"); 
         //$("#lc-js-editor").attr("prevent_live_update", "1");
         lc_js_editor.session.setValue(js, 1);
         //$("#lc-js-editor").removeAttr("prevent_live_update");
         lc_js_editor.setTheme("ace/theme/" + the_editor_theme);
-        $("#lc-html-editor").hide();
-        $("#lc-css-editor").hide();
-        $("#lc-js-editor").show();
+        showCodeEditorPanel("#lc-js-editor");
         lc_js_editor.resize();
         $("select#lc-editor-theme option[value=" + the_editor_theme + "]").prop('selected', true);
     });
@@ -396,47 +971,26 @@ $(document).ready(function ($) {
     $("body").on("click", "#html-tab", function (e) {
         e.preventDefault();
         $(".lc-editor-menubar .only-for-html").show();
-        var selector = $("#lc-code-editor-window").attr("selector");
-        if (selector.toLowerCase() === "main#lc-main") $(".lc-editor-goto-parent-element").hide();
-        $(".code-tabber a.active").removeClass("active");
-        $(this).addClass("active");
-        $("#lc-html-editor").show();
-        $("#lc-css-editor").hide();
-        $("#lc-js-editor").hide();
+        renderHtmlEditorBreadcrumb();
+        syncCodeEditorTabState(Array.from(this.closest(".code-tabber").querySelectorAll("[role='tab']")), this);
+        showCodeEditorPanel("#lc-html-editor");
         lc_html_editor.resize();
 
         $("select#lc-editor-theme option[value=" + the_editor_theme + "]").prop('selected', true);
     });
 
+    $("body").on("keydown", ".code-tabber [role='tab']", function (event) {
+        const tabs = Array.from(this.closest(".code-tabber").querySelectorAll("[role='tab']"));
+        handleCodeEditorTabKeydown(event, tabs, function (tab) {
+            tab.click();
+        });
+    });
 
-    //USER CLICKS lc-editor-parent WHEN CODE EDITOR IS OPEN
-    $("body").on("click", '.lc-editor-goto-parent-element', function (e) {
-        if (!$('#lc-code-editor-window').is(':visible')) { alert("Code editor is closed."); return; }
-        var selector = $('#lc-code-editor-window').attr("selector");
-        
-        const element = previewiframe.contentWindow.document.body.querySelector(selector);
-        if (element && element.parentElement.tagName.toLowerCase() === 'main') { alert("Cannot go beyond this level"); return; }
-        
-        // Navigate to parent
-        selector = CSSelectorForDoc(doc.querySelector(selector).parentNode);
 
-        $("#lc-code-editor-window").attr("selector", selector);
-        myConsoleLog("Open html editor for: " + selector);
-        
-        if (selector.toLowerCase() === "main#lc-main" || selector=="#lc-main"){
-            var html = getPageHTML(selector);
-        } else {
-            var html = getPageHTMLOuter(selector);
-        }
-        set_html_editor(html);
-        $("#lc-code-editor-window").removeClass("lc-opacity-light").fadeIn(100);
-        lc_html_editor.focus();
-        
-
-        $("#html-tab").click();
-
-        previewFrame.contents().find(".lc-highlight-currently-editing").removeClass("lc-highlight-currently-editing"); //for security
-        previewFrame.contents().find(selector).addClass("lc-highlight-currently-editing");
+    $("body").on("click", ".lc-editor-breadcrumb-item", function (e) {
+        if ($(this).attr("aria-current") === "page") return;
+        e.preventDefault();
+        navigateHtmlEditorToSelector(this.dataset.selector);
     });
 
 
@@ -463,6 +1017,15 @@ $(document).ready(function ($) {
         $(this).toggleClass("is-active");
     });
 
+    //CLOSE EXTRAS MENU WHEN THE USER CHOOSES ANOTHER MAIN TOOLBAR OPTION
+    $("body").on("click", "#maintoolbar a", function () {
+        if ($(this).is("#toggle-extras-submenu") || $(this).closest("#extras-submenu").length) {
+            return;
+        }
+        $("#extras-submenu").stop(true, true).slideUp(50);
+        $("#toggle-extras-submenu").removeClass("is-active");
+    });
+
     //USER OPENS PRO EXTRAS MENU
     $("body").on("click", "#toggle-extras-submenu", function (e) {
         if (e.detail === 4) { // Quad click
@@ -483,14 +1046,73 @@ $(document).ready(function ($) {
     //USER CLICKS CODE EDITOR ICON IN MAIN MENU BAR 
     $("body").on("click", "#toggle-code-editor", function (e) {
         e.preventDefault();
-        $(this).toggleClass("is-active"); 
-
-        if ($(this).hasClass("is-active")) {
-            $('.open-main-html-editor').click();
+        if (isCodeEditorWindowOpen()) {
+            closeCodeEditorWindow();
         } else {
-            $('.lc-editor-close').click();
+            openMainHtmlCodeEditor();
+        }
+    });
+
+    $("body").on("click", ".lc-editor-view-options-trigger", function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        setCodeEditorResourcesOpen(false);
+        setCodeEditorViewOptionsOpen(!$(".lc-editor-view-options").hasClass("is-open"));
+    });
+
+    $("body").on("click", ".lc-editor-resources-trigger", function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        setCodeEditorViewOptionsOpen(false);
+        setCodeEditorResourcesOpen(!$(".lc-editor-resources").hasClass("is-open"));
+    });
+
+    $("body").on("click", ".lc-editor-view-options-panel, .lc-editor-resources-panel", function (e) {
+        e.stopPropagation();
+    });
+
+    $(document).on("click", function () {
+        setCodeEditorViewOptionsOpen(false);
+        setCodeEditorResourcesOpen(false);
+    });
+
+    $(document).on("keydown", function (e) {
+        if (e.key === "Escape") {
+            const focusTarget = $(".lc-editor-view-options.is-open .lc-editor-view-options-trigger, .lc-editor-resources.is-open .lc-editor-resources-trigger").get(0);
+            setCodeEditorViewOptionsOpen(false);
+            setCodeEditorResourcesOpen(false);
+            if (focusTarget) focusTarget.focus();
+        }
+    });
+
+    $("body").on("click", ".lc-editor-layout-choice", function (e) {
+        e.preventDefault();
+        const nextMode = $(this).data("layout");
+        const previousMode = getCodeEditorLayoutMode();
+
+        if (previousMode === nextMode) return;
+
+        if (nextMode === lcCodeEditorLayoutModes.custom) {
+            setEditorPreference(lcCodeEditorWindowLayoutCookie, getCodeEditorFloatLayout());
         }
 
+        setCodeEditorLayoutMode(nextMode);
+        if (nextMode !== lcCodeEditorLayoutModes.custom) $(".close-sidepanel").click();
+        if (!isCodeEditorWindowOpen()) {
+            openMainHtmlCodeEditor();
+        } else {
+            openCodeEditorWindow();
+        }
+    });
+
+    $("body").on("click", ".lc-editor-repaint-preview", function (e) {
+        e.preventDefault();
+        repaintPreview();
+    });
+
+    $("body").on("click", ".lc-editor-close-custom", function (e) {
+        e.preventDefault();
+        closeCodeEditorWindow();
     });
 
     //PUSH SIDE PANEL //USELESS NOW
@@ -522,23 +1144,13 @@ $(document).ready(function ($) {
     //USER CLICKS EDIT HTML FROM EXTRAS SUBMENU
     $("body").on("click", '.open-main-html-editor', function (e) {
         e.preventDefault();
-        $(".close-sidepanel").click();
-        $("body").addClass("lc-bottom-editor-is-shown");
-        //$(  "main .lc-shortcode-preview").remove();
-        var selector = "main#lc-main";
-        $("#lc-code-editor-window").attr("selector", selector);
-        myConsoleLog("open html editor for: " + selector);
-        var html = getPageHTML(selector);
-        set_html_editor(html);
-        $("#lc-code-editor-window").removeClass("lc-opacity-light").fadeIn(100);
-        $("#html-tab").click();
-        lc_html_editor.focus(); 
+        openMainHtmlCodeEditor();
     });
 
     //USER CLICKS EDIT CSS FROM EXTRAS SUBMENU
     $("body").on("click", '.open-main-css-editor', function (e) {
         e.preventDefault();
-        $(".open-main-html-editor").click();
+        openMainHtmlCodeEditor();
         $("#css-tab").click();
         setTimeout(function () { $("#extras-submenu").hide(); }, 400);
 
@@ -647,12 +1259,29 @@ $(document).ready(function ($) {
         })
             .then((willDelete) => {
                 if (willDelete) {
-                    $(".lc-editor-close").click();
+                    closeCodeEditorWindow();
                     $(".close-sidepanel").click();
                     setPageHTML("main#lc-main", ""); //setPageHTML("main#lc-main","<section></section>");
                     updatePreview();
                 }
             });
+    });
+
+    //USER RESETS ALL LOCALLY STORED EDITOR PREFERENCES FROM THE HIDDEN PRO MENU
+    $("body").on("click", ".reset-editor-settings", function (e) {
+        e.preventDefault();
+        swal({
+            title: "Reset editor settings?",
+            text: "This resets all local editor preferences and reloads the editor. Unsaved page changes will be lost.",
+            icon: "warning",
+            buttons: ["Cancel", "Reset settings"],
+            dangerMode: true,
+        }).then(function (willReset) {
+            if (!willReset) return;
+            editorPrefsObj = {};
+            localStorage.removeItem("lc_editor_prefs_json");
+            window.location.reload();
+        });
     });
 
     //USER CHANGES UNIVERSAL SELECTION SWITCH
@@ -668,15 +1297,14 @@ $(document).ready(function ($) {
         e.preventDefault();
         $('#responsive-toolbar a.is-active').removeClass("is-active");
         $(this).addClass("is-active");
-        width_value = $(this).attr("data-width");
+        const widthValue = $(this).attr("data-width");
         if ($(this).hasClass("add-smartphone-frame")) $("#previewiframe-wrap").addClass("smartphone");
         else $("#previewiframe-wrap").removeClass("smartphone");
-        $(this).addClass("is-active");
-        $("#previewiframe").css("width", width_value);
+        $("#previewiframe").css("width", widthValue);
 
-        height_value = $(this).attr("data-height");
-        if (height_value === undefined) $("#previewiframe").css("height", "");
-        else $("#previewiframe").css("height", height_value);
+        const heightValue = $(this).attr("data-height");
+        if (heightValue === undefined) $("#previewiframe").css("height", "");
+        else $("#previewiframe").css("height", heightValue);
 
         //take care of superimposed editing buttons
         //previewFrame.contents().find(".lc-helper-link").remove();
@@ -690,7 +1318,7 @@ $(document).ready(function ($) {
     // UNDO / REDO buttons ////////////////////////////////////////
     $("body").on("click", "#toolbar-undo", function (e) {
         e.preventDefault();
-        $(".lc-editor-close").click();
+        closeCodeEditorWindow();
         // Find the currently active li element
         const el = $("#history-steps li.active").next("li");
         // If there's a previous step, trigger a click on it
@@ -702,7 +1330,7 @@ $(document).ready(function ($) {
     });
     $("body").on("click", "#toolbar-redo", function (e) {
         e.preventDefault();
-        $(".lc-editor-close").click();
+        closeCodeEditorWindow();
         // Find the currently active li element
         const el = $("#history-steps li.active").prev("li");
         // If there's a previous step, trigger a click on it
@@ -808,26 +1436,30 @@ $("body").on("click", "#cancel-main-saving", function (e) {
 
     //BIND KEYBOARD SHORTCUTS TO MAIN UX
     $("body").keydown(function (e) {
+        if (e.key === "Escape" && $(".lc-editor-view-options.is-open, .lc-editor-resources.is-open").length) return;
         handleKeyboardEvents(e);
     });
 
 
     ////CODE EDITOR WINDOW UX TWEAKS //////////////////////////////////////////////////////
 
-    //MOUSE LEAVES CODE WINDOW: make it translucent
-    $("body").on("mouseleave", "#lc-code-editor-window", function () {
-        if ($('#lc-editor-transparency').prop('checked')) {
-            $("#lc-code-editor-window").addClass("lc-opacity-light");
-        } else {
-            $("#lc-code-editor-window").removeClass("lc-opacity-light");
-        }
-    }); //end function
+    function updateCodeEditorTransparency(isHoveringEditor) {
+        const shouldDim = $("#lc-editor-transparency").prop("checked") && !isHoveringEditor;
+        $("#lc-code-editor-window, #lc-code-editor-winbox").toggleClass("lc-opacity-light", shouldDim);
+    }
 
-    //Open editor tips
-    $("body").on("change", "#lc-editor-tips", function (e) {
-        e.preventDefault();
-        if ($(this).val() != "") window.open($(this).val());
+    $("body").on("mouseenter", "#lc-code-editor-window, #lc-code-editor-winbox", function () {
+        updateCodeEditorTransparency(true);
     });
+
+    $("body").on("mouseleave", "#lc-code-editor-window, #lc-code-editor-winbox", function () {
+        updateCodeEditorTransparency(!!$("#lc-code-editor-window:hover, #lc-code-editor-winbox:hover").length);
+    });
+
+    $("body").on("change", "#lc-editor-transparency", function () {
+        updateCodeEditorTransparency(!!$("#lc-code-editor-window:hover, #lc-code-editor-winbox:hover").length);
+    });
+
     //User changes THEME SELECTION
     $("body").on("change", "#lc-editor-theme", function (e) {
         e.preventDefault();
@@ -846,44 +1478,27 @@ $("body").on("click", "#cancel-main-saving", function (e) {
         }
     });
     //User changes FONT SIZE
-    $("body").on("change", "#lc-editor-fontsize", function (e) {
+    $("body").on("input change", "#lc-editor-fontsize", function (e) {
         e.preventDefault();
-        document.getElementById('lc-html-editor').style.fontSize = $(this).val() + 'px';
-        document.getElementById('lc-css-editor').style.fontSize = $(this).val() + 'px';
-        document.getElementById('lc-js-editor').style.fontSize = $(this).val() + 'px';
-        setEditorPreference("editor_fontsize", $(this).val());
+        const enteredSize = parseInt(this.value, 10);
+        if (!Number.isFinite(enteredSize)) return;
+        const fontSize = Math.max(9, Math.min(24, enteredSize));
+        if (e.type === "change") this.value = fontSize;
+        document.getElementById('lc-html-editor').style.fontSize = fontSize + 'px';
+        document.getElementById('lc-css-editor').style.fontSize = fontSize + 'px';
+        document.getElementById('lc-js-editor').style.fontSize = fontSize + 'px';
+        setEditorPreference("editor_fontsize", fontSize);
     });
     //USER CLICKS CLOSE CODE EDITOR WINDOW
     $("body").on("click", ".lc-editor-close", function (e) {
         e.preventDefault();
-        $("body").removeClass("lc-bottom-editor-is-shown");
-        $("#toggle-code-editor").removeClass("is-active");
-        //$(this).closest("section").removeClass("lc-editor-window-maximized");
-        lc_html_editor.resize(); lc_css_editor.resize();
-        $(this).closest("section").hide();
-        initialize_contextual_menus();
-    });
-
-    //USER CLICKS MAXIMIZE CODE EDITOR WINDOW
-    $("body").on("click", ".lc-editor-maximize", function (e) {
-        e.preventDefault();
-        let ed = document.getElementById('lc-code-editor-window');
-        $(this).closest("section").removeClass("lc-editor-window-sided");
-        $(this).closest("section").toggleClass("lc-editor-window-maximized");
-        lc_html_editor.resize(); lc_css_editor.resize();
-    });
-
-    //USER CLICKS SIDE CODE EDITOR WINDOW
-    $("body").on("click", ".lc-editor-side", function (e) {
-        e.preventDefault();
-        $(this).closest("section").removeClass("lc-editor-window-maximized");
-        $(this).closest("section").toggleClass("lc-editor-window-sided");
-        lc_html_editor.resize(); lc_css_editor.resize();
+        closeCodeEditorWindow();
     });
 
     /* *************************** HANDLE CLICKING OF ADD NEW SECTION BUTTON *************************** *///
     $("body").on('click', ".add-new-section", function (e) {
         e.preventDefault();
+        $("#primary-tools").hide();
         //$("#sidepanel .close-sidepanel").click();
         myConsoleLog("Let's create a new section");
         //previewFrame.contents().find("#lc-add-new-container-section-wrap").hide();
@@ -907,9 +1522,9 @@ $("body").on("click", "#cancel-main-saving", function (e) {
             updatePreview();
         }
         //now open the respective panel
-        var selector = CSSelectorForDoc(previewFrame.contents().find("main section:last")[0]); //alert(selector);
-        revealSidePanel("sections", selector);
-        $(".sidepanel-tabs a:first").click(); //open first tab
+        var selector = CSSelectorForDoc(previewFrame.contents().find("main#lc-main > section").not("#global-footer").last()[0]); //alert(selector);
+        //revealSidePanel("sections", selector);
+        //$(".sidepanel-tabs a:first").click(); //open first tab
         
         //scroll the preview to the new section
         setTimeout(function () { previewFrame.contents().find("html, body").animate({ scrollTop: previewFrame.contents().find(selector).offset().top }, 500, 'linear'); }, 100);

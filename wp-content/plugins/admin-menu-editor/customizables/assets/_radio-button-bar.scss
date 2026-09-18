@@ -1,11 +1,12 @@
-@import "../../css/forms";
+@use 'button-group';
+@use "../../css/forms";
 
 .ame-radio-button-bar-control {
 	display: flex;
 	flex-direction: row;
 
 	input[type="radio"], input[type="checkbox"] {
-		@include ame-visually-hide-input;
+		@include forms.ame-visually-hide-input;
 	}
 
 	> label {
@@ -43,8 +44,14 @@
 	}
 
 	.ame-radio-bar-button {
+		@include button-group.ame-button-group-button;
+
 		display: flex;
 		align-items: center;
+
+		.dashicons {
+			line-height: 1;
+		}
 
 		&.ame-rb-has-label {
 			.dashicons {

@@ -41,6 +41,9 @@ var AmeMiniFunc;
         orNull() {
             return this.value;
         }
+        getOrThrow() {
+            return this.value;
+        }
     }
     class None {
         map(f) {
@@ -71,6 +74,9 @@ var AmeMiniFunc;
         }
         orNull() {
             return null;
+        }
+        getOrThrow(message) {
+            throw new Error(message ?? 'Cannot get value from None');
         }
         flatMap(f) {
             return this;
@@ -162,8 +168,6 @@ var AmeMiniFunc;
         }
     }
     AmeMiniFunc.Right = Right;
-    //endregion
-    //region Misc
     function sanitizeNumericString(str) {
         if (str === '') {
             return '';
@@ -193,6 +197,19 @@ var AmeMiniFunc;
         }
     }
     AmeMiniFunc.forEachObjectKey = forEachObjectKey;
+    /**
+     * Creates an object composed of the items in the given array, indexed by the specified property.
+     *
+     * Like _.keyBy() in lodash, but with stricter types.
+     */
+    function indexByProperty(items, key) {
+        const result = {};
+        items.forEach(item => {
+            result[item[key]] = item;
+        });
+        return result;
+    }
+    AmeMiniFunc.indexByProperty = indexByProperty;
     //endregion
 })(AmeMiniFunc || (AmeMiniFunc = {}));
 //# sourceMappingURL=mini-func.js.map

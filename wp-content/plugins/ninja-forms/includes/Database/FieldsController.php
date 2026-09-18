@@ -122,14 +122,21 @@ class NF_Database_FieldsController
     {
         return $this->fields_data;
     }
-    private function parse_fields()
+    protected function parse_fields()
     {
+        // Settings that should be converted to integers (uses associative array for O(1) lookup)
+        $integer_settings = array(
+            'id' => true,
+            'parent_id' => true,
+            'order' => true
+        );
+
         foreach( $this->fields_data as &$field_data ){
             $field_id = $field_data[ 'id' ];
 
             /**
              * We've defined which items go into our DB, as well as which settings they map to.
-             * 
+             *
              * Loop over our $db_columns array and setup an array for $settings.
              */
             $settings = array();
@@ -137,9 +144,11 @@ class NF_Database_FieldsController
             foreach( $this->db_columns as $column_name => $setting_name ) {
                 $value = '';
                 if( isset( $field_data[ 'settings' ][ $setting_name ] ) ) {
-                    // If the setting value is numeric, make sure it's intval'd.
+                    // Only convert whitelisted settings to integers; preserve decimal precision for others
                     if ( is_numeric( $field_data[ 'settings' ][ $setting_name ] ) ) {
-                        $field_data[ 'settings' ][ $setting_name ] = intval( $field_data[ 'settings' ][ $setting_name ]  );
+                        if ( isset( $integer_settings[ $setting_name ] ) ) {
+                            $field_data[ 'settings' ][ $setting_name ] = intval( $field_data[ 'settings' ][ $setting_name ] );
+                        }
                     }
 
                     //Sanitize string settings if disallow_unfiltered_html is true
@@ -217,6 +226,19 @@ class NF_Database_FieldsController
             $field_id = $field_data[ 'id' ];
 
             foreach( $field_data[ 'settings' ] as $key => $value ){
+
+                /*
+                 * A list field's options are an array, so they fall straight past the
+                 * is_string() guard below and were never sanitised. Labels may carry
+                 * basic formatting, so they go through the allowlist rather than being
+                 * escaped; values are identifiers and are escaped where they are shown.
+                 * $value is reassigned so the cleaned options are what actually reach
+                 * the meta query, not just the returned settings array.
+                 */
+                if( 'options' === $key && is_array( $value ) && WPN_Helper::maybe_disallow_unfiltered_html_for_sanitization() ){
+                    $value = WPN_Helper::kses_list_options( $value );
+                    $field_data[ 'settings' ][ $key ] = $value;
+                }
 
                 //Sanitize string settings if disallow_unfiltered_html is true
                 if(is_string($value) && WPN_Helper::maybe_disallow_unfiltered_html_for_sanitization()){

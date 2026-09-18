@@ -2,7 +2,7 @@
 /*
 Plugin Name: LiveCanvas
 Description: Build better Web pages. An awesome live HTML editor focused on speed and code quality.
-Version: 4.9.3
+Version: 4.9.4
 Author: The LiveCanvas Team
 Author URI: https://www.livecanvas.com
 */
@@ -11,7 +11,7 @@ Author URI: https://www.livecanvas.com
 defined( 'ABSPATH' ) || exit;
 
 //DEFINE SCRIPTS VERSION
-if (strpos($_SERVER['REQUEST_URI'], '/livecanvas-dev/') !== false)	define("LC_SCRIPTS_VERSION", rand(0, 1000)); else define("LC_SCRIPTS_VERSION", "4.9.2");
+if (strpos($_SERVER['REQUEST_URI'], '/livecanvas-dev/') !== false)	define("LC_SCRIPTS_VERSION", rand(0, 1000)); else define("LC_SCRIPTS_VERSION", "4.9.4");
 
 if (!defined('DS')) {
 	define('DS', DIRECTORY_SEPARATOR);
@@ -27,6 +27,14 @@ if (!defined('LC_MU_PLUGIN')) {
 }
 
 //MODULES
+function lc_is_rest_api_request() {
+	return (defined('REST_REQUEST') && REST_REQUEST) || isset($_GET['rest_route']) || strpos($_SERVER['REQUEST_URI'] ?? '', '/wp-json/') !== false;
+}
+
+if ( ! defined('LC_DISABLE_TANGIBLE') && lc_is_rest_api_request() ) {
+	define('LC_DISABLE_TANGIBLE', true);
+}
+
 if ( ! defined('TANGIBLE_LOGIC_VERSION') && ! defined('LC_DISABLE_TANGIBLE') ) {
 	require __DIR__ . '/vendor/tangible/template-system/index.php'; //comment this row to disable <tangible>
 }

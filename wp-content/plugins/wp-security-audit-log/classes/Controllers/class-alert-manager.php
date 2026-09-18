@@ -776,7 +776,7 @@ if ( ! class_exists( '\WSAL\Controllers\Alert_Manager' ) ) {
 				\esc_attr( $class ),
 				'<span style="color:#dc3232; font-weight:bold;">' . \esc_html__( 'ERROR:', 'wp-security-audit-log' ) . '</span>',
 				\esc_html( $message ),
-				'<a href="https://melapress.com/contact" target="_blank">' . \esc_html__( 'Contact us', 'wp-security-audit-log' ) . '</a>'
+				'<a href="https://melapress.com/contact/?utm_source=plugin&utm_medium=wsal&utm_campaign=error-notice-contact-us" target="_blank">' . \esc_html__( 'Contact us', 'wp-security-audit-log' ) . '</a>'
 			);
 		}
 
@@ -1362,6 +1362,8 @@ if ( ! class_exists( '\WSAL\Controllers\Alert_Manager' ) ) {
 					'denied'       => esc_html__( 'Denied', 'wp-security-audit-log' ),
 					'available'    => esc_html__( 'Available', 'wp-security-audit-log' ),
 					'completed'    => esc_html__( 'Completed', 'wp-security-audit-log' ),
+					'connected'    => esc_html__( 'Connected', 'wp-security-audit-log' ),
+					'disconnected' => esc_html__( 'Disconnected', 'wp-security-audit-log' ),
 				);
 				// sort the types alphabetically.
 				asort( self::$event_types );

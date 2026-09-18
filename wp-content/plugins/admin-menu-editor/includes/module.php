@@ -24,10 +24,13 @@ abstract class ameModule {
 	 */
 	protected $menuEditor;
 
-	public function __construct($menuEditor) {
+	public function __construct($menuEditor, $moduleDir = null) {
 		$this->menuEditor = $menuEditor;
 
-		if ( class_exists('ReflectionClass', false) ) {
+		if ( $moduleDir !== null ) {
+			$this->moduleDir = rtrim($moduleDir, '/');
+			$this->moduleId = basename($this->moduleDir);
+		} else if ( class_exists('ReflectionClass', false) ) {
 			//This should never throw an exception since the current class must exist for this constructor to be run.
 			$reflector = new ReflectionClass(get_class($this));
 			$this->moduleDir = dirname($reflector->getFileName());
@@ -100,7 +103,7 @@ abstract class ameModule {
 		return $this->outputTemplate($this->moduleId);
 	}
 
-	protected function outputTemplate($name) {
+	public function outputTemplate($name) {
 		$templateFile = $this->moduleDir . '/' . $name . '-template.php';
 		if ( file_exists($templateFile) ) {
 			$moduleTabUrl = $this->getTabUrl();
@@ -213,7 +216,7 @@ abstract class ameModule {
 		wp_register_style($handle, $styleUrl, $dependencies, $version, $media);
 	}
 
-	protected function registerLocalScript($handle, $relativePath, $dependencies = [], $inFooter = false): ScriptDependency {
+	public function registerLocalScript($handle, $relativePath, $dependencies = [], $inFooter = false): ScriptDependency {
 		$dependency = $this->createScriptDependency($relativePath, $handle);
 		if ( $inFooter ) {
 			$dependency->setInFooter();
@@ -229,7 +232,7 @@ abstract class ameModule {
 	 * @param string|null $handle
 	 * @return ScriptDependency
 	 */
-	protected function createScriptDependency($relativePath, $handle = null) {
+	public function createScriptDependency($relativePath, $handle = null) {
 		$relativePath = ltrim($relativePath, '/');
 		$fullPath = $this->moduleDir . '/' . $relativePath;
 

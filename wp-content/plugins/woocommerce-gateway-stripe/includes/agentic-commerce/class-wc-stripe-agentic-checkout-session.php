@@ -94,6 +94,16 @@ class WC_Stripe_Agentic_Checkout_Session {
 	}
 
 	/**
+	 * Returns the aggregate discount amount in the smallest currency unit, or 0 when absent.
+	 *
+	 * @since 10.9.0
+	 * @return int
+	 */
+	public function get_amount_discount(): int {
+		return (int) ( $this->session->total_details->amount_discount ?? 0 );
+	}
+
+	/**
 	 * Returns the customer email, falling back from customer_details to customer_email.
 	 * Returns null when neither source is present.
 	 *
@@ -285,19 +295,26 @@ class WC_Stripe_Agentic_Checkout_Session {
 	/**
 	 * Checks whether this checkout session originates from agentic commerce.
 	 *
-	 * A session is agentic when at least one line item has an
-	 * external_reference that resolves to a nonzero integer (product ID).
+	 * A session is agentic when its payment intent carries an
+	 * agent_details.network_business_profile, which Stripe populates to
+	 * identify the originating agent. The webhook handler expands
+	 * payment_intent.agent_details on retrieve for exactly this detection.
 	 *
 	 * @since 10.6.0
 	 * @return bool
 	 */
 	public function is_agentic(): bool {
-		foreach ( $this->get_line_items() as $line_item ) {
-			if ( $line_item->has_product_id() ) {
-				return true;
-			}
+		$payment_intent = $this->session->payment_intent ?? null;
+		if ( ! is_object( $payment_intent ) ) {
+			return false;
 		}
 
-		return false;
+		$agent_details = $payment_intent->agent_details ?? null;
+		if ( ! is_object( $agent_details ) ) {
+			return false;
+		}
+
+		$network_business_profile = $agent_details->network_business_profile ?? '';
+		return is_string( $network_business_profile ) && '' !== $network_business_profile;
 	}
 }
