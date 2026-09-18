@@ -3,7 +3,7 @@
  * Plugin Name: Lytrod Emails
  * Plugin URI:  https://tylerjohnsondesign.com
  * Description: Replaces every WooCommerce, Subscriptions and Stripe transactional email with a modern, SaaS-oriented Lytrod-branded design system.
- * Version:     1.0.0
+ * Version:     1.1.0
  * Author:      Tyler Johnson
  * Author URI:  https://tylerjohnsondesign.com
  * License:     GPL-2.0-or-later
@@ -17,7 +17,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'LYTROD_EMAILS_VERSION', '1.0.0' );
+define( 'LYTROD_EMAILS_VERSION', '1.1.0' );
 define( 'LYTROD_EMAILS_FILE', __FILE__ );
 define( 'LYTROD_EMAILS_DIR', plugin_dir_path( __FILE__ ) );
 define( 'LYTROD_EMAILS_URL', plugin_dir_url( __FILE__ ) );
@@ -29,8 +29,21 @@ require_once LYTROD_EMAILS_DIR . 'includes/class-lytrod-emails-lexicon.php';
 require_once LYTROD_EMAILS_DIR . 'includes/class-lytrod-emails-payment.php';
 require_once LYTROD_EMAILS_DIR . 'includes/class-lytrod-emails-templates.php';
 require_once LYTROD_EMAILS_DIR . 'includes/class-lytrod-emails-compat.php';
+require_once LYTROD_EMAILS_DIR . 'includes/class-lytrod-emails-scheduler.php';
+require_once LYTROD_EMAILS_DIR . 'includes/class-lytrod-emails-migrate.php';
 require_once LYTROD_EMAILS_DIR . 'includes/functions.php';
 require_once LYTROD_EMAILS_DIR . 'includes/class-lytrod-emails.php';
+
+/*
+ * The five licence lifecycle email classes extend WC_Email, which does not exist yet, so they
+ * are required from inside the `woocommerce_email_classes` callback instead — see
+ * Lytrod_Emails::register_email_classes().
+ */
+
+if ( defined( 'WP_CLI' ) && WP_CLI ) {
+    require_once LYTROD_EMAILS_DIR . 'includes/class-lytrod-emails-cli.php';
+    add_action( 'plugins_loaded', array( 'Lytrod_Emails_CLI', 'init' ), 20 );
+}
 
 /*
  * Template routing is registered at file load rather than on a hook.

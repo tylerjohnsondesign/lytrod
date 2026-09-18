@@ -29,6 +29,15 @@ class Lytrod_Emails {
         Lytrod_Emails_Context::init();
         Lytrod_Emails_Lexicon::init();
         Lytrod_Emails_Payment::init();
+        Lytrod_Emails_Scheduler::init();
+
+        /*
+         * The licence lifecycle emails. `plugins_loaded` is comfortably ahead of
+         * WC_Emails::init(), which is where this filter is applied.
+         */
+        add_filter( 'woocommerce_email_classes', array( __CLASS__, 'register_email_classes' ) );
+
+        add_action( 'admin_notices', array( __CLASS__, 'legacy_owner_notice' ) );
 
         /*
          * Suppress WooCommerce's hardcoded `<hr style="border-top:1px solid #1E1E1E">`
@@ -61,6 +70,78 @@ class Lytrod_Emails {
          */
         add_action( 'woocommerce_subscriptions_gifting_recipient_email_details', array( __CLASS__, 'suppress_gifting_tables' ), 1 );
         add_action( 'woocommerce_subscriptions_gifting_recipient_email_details', array( __CLASS__, 'restore_gifting_tables' ), 999 );
+    }
+
+    /**
+     * Add the licence lifecycle emails to WooCommerce's roster.
+     *
+     * Keyed by class name, matching WooCommerce's own convention — the settings screen builds
+     * each email's section URL from it.
+     *
+     * @param array $emails Registered emails.
+     * @return array
+     */
+    public static function register_email_classes( $emails ): array {
+        require_once LYTROD_EMAILS_DIR . 'includes/emails/class-lytrod-emails-subscription-email.php';
+        require_once LYTROD_EMAILS_DIR . 'includes/emails/class-lytrod-emails-renewal-reminder.php';
+
+        foreach ( array(
+            'Lytrod_Emails_Renewal_30_Stored'   => 'class-lytrod-emails-renewal-30-stored.php',
+            'Lytrod_Emails_Renewal_3_Stored'    => 'class-lytrod-emails-renewal-3-stored.php',
+            'Lytrod_Emails_Renewal_30_Unstored' => 'class-lytrod-emails-renewal-30-unstored.php',
+            'Lytrod_Emails_Renewal_3_Unstored'  => 'class-lytrod-emails-renewal-3-unstored.php',
+            'Lytrod_Emails_License_Ended'       => 'class-lytrod-emails-license-ended.php',
+        ) as $class => $file ) {
+            require_once LYTROD_EMAILS_DIR . 'includes/emails/' . $file;
+
+            $emails[ $class ] = new $class();
+        }
+
+        return $emails;
+    }
+
+    /**
+     * Say plainly why the new licence emails are inert.
+     *
+     * The scheduler stands down while the plugins it replaces are installed. Without this notice
+     * that looks like a bug rather than a deliberate interlock.
+     *
+     * @return void
+     */
+    public static function legacy_owner_notice(): void {
+        if ( ! current_user_can( 'manage_woocommerce' ) ) {
+            return;
+        }
+
+        $screen = function_exists( 'get_current_screen' ) ? get_current_screen() : null;
+
+        if ( ! $screen || 'woocommerce_page_wc-settings' !== $screen->id ) {
+            return;
+        }
+
+        // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only screen check.
+        if ( 'email' !== ( $_GET['tab'] ?? '' ) ) {
+            return;
+        }
+
+        $owners = array();
+
+        if ( Lytrod_Emails_Scheduler::legacy_reminders_active() ) {
+            $owners[] = __( '<strong>Lytrod Renewal Emails</strong> still sends the four renewal reminders.', 'lytrod-emails' );
+        }
+
+        if ( Lytrod_Emails_Scheduler::legacy_ended_active() ) {
+            $owners[] = __( '<strong>Subscriptions Upgrader</strong> still sends the license ended email.', 'lytrod-emails' );
+        }
+
+        if ( ! $owners ) {
+            return;
+        }
+
+        echo '<div class="notice notice-info"><p>';
+        echo wp_kses_post( implode( ' ', $owners ) );
+        echo ' ' . esc_html__( 'The matching Lytrod license emails below will not send until that plugin is deactivated, so nobody can receive both.', 'lytrod-emails' );
+        echo '</p></div>';
     }
 
     /**

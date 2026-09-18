@@ -83,6 +83,14 @@ class Lytrod_Emails_Content {
             'payment_retry'                              => array( 'label' => __( 'Retrying payment', 'lytrod-emails' ), 'tone' => 'accent' ),
             'customer_payment_retry'                     => array( 'label' => __( 'Payment issue', 'lytrod-emails' ), 'tone' => 'danger' ),
 
+            // Licence lifecycle. The "no card on file" variants are warnings, so they carry more
+            // urgency the closer the expiry gets.
+            'lytrod_renewal_30_stored'                   => array( 'label' => __( 'Renewing soon', 'lytrod-emails' ), 'tone' => 'accent' ),
+            'lytrod_renewal_3_stored'                    => array( 'label' => __( 'Renewing soon', 'lytrod-emails' ), 'tone' => 'primary' ),
+            'lytrod_renewal_30_unstored'                 => array( 'label' => __( 'Action required', 'lytrod-emails' ), 'tone' => 'accent' ),
+            'lytrod_renewal_3_unstored'                  => array( 'label' => __( 'Action required', 'lytrod-emails' ), 'tone' => 'danger' ),
+            'lytrod_license_ended'                       => array( 'label' => __( 'Expired', 'lytrod-emails' ), 'tone' => 'danger' ),
+
             /*
              * Subscriptions Gifting. Note the first id is a class name rather than a
              * slug (includes/gifting/emails/class-wcsg-email-customer-new-account.php:58),
