@@ -30,7 +30,12 @@ define( [], function( ) {
 		validateFields: function() {
 			_.each( this.models, function( fieldModel ) {
 				if(fieldModel.get("type") === "repeater"){
-					const repeaterModels = nfRadio.channel( "field-repeater" ).request( 'get:repeaterFieldsModelsArrayByForm', fieldModel.get('formID') );
+					// Scoped to this specific Repeater field only. Using the form-wide
+					// get:repeaterFieldsModelsArrayByForm lookup here would validate every
+					// Repeater's children across the whole form, including ones on other
+					// (unvisited) multi-part parts. See issue #311.
+					const repeaterFieldset = nfRadio.channel( "field-repeater" ).request( 'get:repeaterFields', fieldModel.get('id') );
+					const repeaterModels = repeaterFieldset ? repeaterFieldset.fields : [];
 					_.each( repeaterModels, function( repeaterFieldModel ) {
 						// added here for help with multi-part part validation
 						repeaterFieldModel.set( 'clean', false );

@@ -34,6 +34,13 @@ define( [], function() {
 
 				// When we change the value of our field, update our compare status.
 				fieldModel.on( 'change:value', this.updateFieldCompare, this );
+				// For date_and_time fields, picking the hour/minute/am-pm only updates
+				// those attributes (not 'value') until the form is actually submitted
+				// (see NF core changeDate.js: changeHoursMinutes). Without these listeners,
+				// the comparison stays frozen at whatever time was selected (usually 00:00)
+				// when the date was first picked, and never re-evaluates as the visitor
+				// picks a time.
+				fieldModel.on( 'change:selected_hour change:selected_minute change:selected_ampm', this.updateFieldCompare, this );
 				// When we keyup in our field, maybe update our compare status.
 				this.listenTo( nfRadio.channel( 'field-' + fieldModel.get( 'id' ) ), 'keyup:field', this.maybeupdateFieldCompare );
 				// Update our compare status.
@@ -70,9 +77,15 @@ define( [], function() {
 				var fieldValue = fieldModel.get( 'value' );
             } else if ( 'date' == fieldModel.get ('type' ) ) {
 				var fieldValue = fieldModel.get( 'value' );
+				var fieldHadValue = ! _.isEmpty( fieldValue );
 
 				if ( _.isEmpty( fieldValue ) ) {
-					fieldValue = '1970/01/01';
+					if ( 1 == fieldModel.get( 'date_default' ) ) {
+						var now = new Date();
+						fieldValue = now.getFullYear() + '/' + ( '0' + ( now.getMonth() + 1 ) ).slice( -2 ) + '/' + ( '0' + now.getDate() ).slice( -2 );
+					} else {
+						fieldValue = '1970/01/01';
+					}
 				}
 
 				let date_mode = fieldModel.get( 'date_mode' );
@@ -84,7 +97,9 @@ define( [], function() {
 				if ( 'time_only' == fieldModel.get( 'date_mode' ) ) {
 					date = '1970/01/01';
 				} else {
-					date = fieldValue;
+					// Parse the submitted value using the field's own configured date_format,
+					// instead of handing a format-dependent string straight to `new Date()`.
+					date = fieldHadValue ? this.normalizeDateToISO( fieldValue, fieldModel ) : fieldValue;
 				}
 
 				// Convert field value into a timestamp
@@ -114,23 +129,79 @@ define( [], function() {
 			this.updateFieldCompare( fieldModel, null, fieldValue );
 		},
 
-		updateCompare: function( value ) {
+		/**
+		 * Convert a date field's raw submitted value into a Y/m/d order string
+		 * ("normalized ISO"), parsing it according to the field's own date_format
+		 * setting rather than assuming YYYY-MM-DD. Falls back to the original string
+		 * unchanged if the field's flatpickr instance/format can't be resolved (e.g.
+		 * a hidden or programmatically-set field), preserving prior behavior for
+		 * those cases.
+		 *
+		 * @param {string} dateString Raw value straight from the field model.
+		 * @param {object} fieldModel Backbone field model for the date field.
+		 * @return {string} Y/m/d date string, or the original value if it couldn't be parsed.
+		 */
+		normalizeDateToISO: function( dateString, fieldModel ) {
+			var format = fieldModel.get( 'date_format' );
+			var el = document.querySelector( "[name='nf-field-" + fieldModel.get( 'id' ) + "']" );
+
+			if ( ! el || ! el._flatpickr || ! format ) {
+				return dateString;
+			}
+
+			var parsed = el._flatpickr.parseDate( dateString, format );
+
+			if ( ! parsed || isNaN( parsed.getTime() ) ) {
+				return dateString;
+			}
+
+			return parsed.getFullYear() + '/' + ( '0' + ( parsed.getMonth() + 1 ) ).slice( -2 ) + '/' + ( '0' + parsed.getDate() ).slice( -2 );
+		},
+
+		updateCompare: function( value, dateMode ) {
 			var this_val = this.get( 'value' );
 
 			// if this is a calcModel then let's convert to number for comparison
 			if ( 'calc' === this.get( 'type' ) ) {
 				this_val = Number( this_val );
 				value = Number( value );
+			} else if ( 'undefined' != typeof dateMode ) {
+				// The stored condition target may have been created while the field was in a
+				// different date_mode (e.g. a time baked in from Date and Time mode, now that
+				// the field is Date Only). Disregard whichever component (date, or time-of-day)
+				// the current mode doesn't actually capture.
+				value = this.normalizeForDateMode( value, dateMode );
+				this_val = this.normalizeForDateMode( this_val, dateMode );
 			}
 			// Check to see if the value of the field model value COMPARATOR the value of our when condition is true.
 			var status = this.compareValues[ this.get( 'comparator' ) ]( value, this_val );
 			this.set( 'status', status );
 		},
 
+		normalizeForDateMode: function( epoch, dateMode ) {
+			if ( false === epoch || null === epoch || 'undefined' == typeof epoch || isNaN( epoch ) ) {
+				return epoch;
+			}
+
+			var DAY_IN_SECONDS = 86400;
+
+			if ( 'date_only' === dateMode ) {
+				return epoch - ( epoch % DAY_IN_SECONDS );
+			}
+
+			if ( 'time_only' === dateMode ) {
+				return ( ( epoch % DAY_IN_SECONDS ) + DAY_IN_SECONDS ) % DAY_IN_SECONDS;
+			}
+
+			return epoch;
+		},
+
 		updateFieldCompare: function( fieldModel, val, fieldValue ) {
 			if ( _.isEmpty( fieldValue ) ) {
 				fieldValue = fieldModel.get( 'value' );
 			}
+
+			var date_mode;
 
 			// Change the value of checkboxes to match the new convention.
 			if( 'checkbox' == fieldModel.get( 'type' ) ) {
@@ -140,11 +211,28 @@ define( [], function() {
 					fieldValue = 'checked';
 				}
 			} else if ( 'date' == fieldModel.get( 'type' ) ) {
-				if ( _.isEmpty( fieldValue ) ) {
-					fieldValue = '1970/01/01';
+				// NF core's fieldDate.js sets the model's 'value' to an object
+				// ({date, hour, minute, ampm}) right at form submission (beforeSubmit),
+				// instead of the plain date string used everywhere else. Extract the date
+				// portion here so normalizeDateToISO() always receives a string — otherwise
+				// its flatpickr parseDate() call receives the object and logs "Invalid date
+				// provided", falling back to the (still-an-object) value unchanged.
+				if ( _.isObject( fieldValue ) ) {
+					fieldValue = fieldValue.date;
 				}
 
-				let date_mode = fieldModel.get( 'date_mode' );
+				var fieldHadValue = ! _.isEmpty( fieldValue );
+
+				if ( _.isEmpty( fieldValue ) ) {
+					if ( 1 == fieldModel.get( 'date_default' ) ) {
+						var now = new Date();
+						fieldValue = now.getFullYear() + '/' + ( '0' + ( now.getMonth() + 1 ) ).slice( -2 ) + '/' + ( '0' + now.getDate() ).slice( -2 );
+					} else {
+						fieldValue = '1970/01/01';
+					}
+				}
+
+				date_mode = fieldModel.get( 'date_mode' );
 				if ( 'undefined' == typeof date_mode ) { // If 'date_mode' is undefined, then we assume it's date_only.
 					date_mode = 'date_only';
 				}
@@ -153,7 +241,9 @@ define( [], function() {
 				if ( 'time_only' == fieldModel.get( 'date_mode' ) ) {
 					date = '1970/01/01';
 				} else {
-					date = fieldValue;
+					// Parse the submitted value using the field's own configured date_format,
+					// instead of handing a format-dependent string straight to `new Date()`.
+					date = fieldHadValue ? this.normalizeDateToISO( fieldValue, fieldModel ) : fieldValue;
 				}
 
 				// Convert field value into a timestamp
@@ -184,18 +274,18 @@ define( [], function() {
 					fieldValue = date + ' ' + hour + ':' + minute + ' UT';
 
 					let dateObject = new Date( fieldValue );
-					fieldValue = Math.floor( dateObject.getTime() / 1000 );					
+					fieldValue = Math.floor( dateObject.getTime() / 1000 );
 				}
 			}
 
-			this.updateCompare( fieldValue );
+			this.updateCompare( fieldValue, date_mode );
 
 			/*
 			 * TODO: This should be moved to the show_field/hide_field file because it is specific to showing and hiding.
 			 */
 			if ( ! fieldModel.get( 'visible' ) ) {
 				this.set( 'status', false );
-			}			
+			}
 		},
 
 		compareValues: {

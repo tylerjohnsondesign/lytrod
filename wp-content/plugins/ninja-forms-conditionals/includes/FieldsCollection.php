@@ -1,6 +1,6 @@
 <?php
 
-final class NF_ConditionalLogic_FieldsCollection {
+class NF_ConditionalLogic_FieldsCollection {
 
 	/**
 	 * Fields.
@@ -8,6 +8,15 @@ final class NF_ConditionalLogic_FieldsCollection {
 	 * @var array
 	 */
 	private $fields;
+
+	/**
+	 * Snapshot of each field's submitted value at construction time.
+	 * Used by ConditionModel to evaluate "when" conditions against the original
+	 * submitted data, unaffected by HideField/ShowField triggers running on earlier blocks.
+	 *
+	 * @var array  Keyed by field ID.
+	 */
+	private $original_values = array();
 
 	/**
 	 * Constructor.
@@ -57,6 +66,11 @@ final class NF_ConditionalLogic_FieldsCollection {
 				}
 
 				$fieldModel->update_setting( $key, $field_value );
+
+				// Snapshot the submitted value before any trigger can mutate it.
+				if ( 'value' === $key ) {
+					$this->original_values[ $field_id ] = $field_value;
+				}
 			}
 
 			// If we are in preview mode, trust the data sent by the user.
@@ -95,6 +109,18 @@ final class NF_ConditionalLogic_FieldsCollection {
 			}
 		}
 		return Ninja_Forms()->form()->field()->get();
+	}
+
+	/**
+	 * Get the original submitted value for a field as captured at construction time.
+	 * This is unaffected by HideField/ShowField triggers running during condition processing.
+	 *
+	 * @param int $field_id
+	 *
+	 * @return mixed  The original submitted value, or null if not found.
+	 */
+	public function get_field_original_value( $field_id ) {
+		return isset( $this->original_values[ $field_id ] ) ? $this->original_values[ $field_id ] : null;
 	}
 
 	/**

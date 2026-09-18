@@ -11,7 +11,8 @@ define( [ 'views/advanced/whenCollection', 'views/advanced/thenCollection', 'vie
 
 		attributes: function() {
 			return {
-				'data-cid': this.model.cid
+				'data-cid': this.model.cid,
+				'data-qa-id': this.model.get( 'qaId' )
 			};
 		},
 

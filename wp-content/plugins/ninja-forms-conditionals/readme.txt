@@ -2,9 +2,9 @@
 Contributors: kstover, jameslaws, kbjohnson, klhall1987, Much2tall, deckerweb, mrpritchett
 Donate link: http://ninjaforms.com
 Tags: form, forms
-Requires at least: 6.7
-Tested up to: 6.9
-Stable tag: 3.1.3
+Requires at least: 6.8
+Tested up to: 7.0
+Stable tag: 3.1.5
 
 License: GPLv2 or later
 
@@ -29,22 +29,32 @@ This section describes how to install the plugin and get it working.
 For help and video tutorials, please visit our website: [Ninja Forms Documentation](http://ninjaforms.com/documentation/intro/)
 
 == Upgrade Notice ==
-= 3.1.3 (30 March 2026) =
+= 3.1.5 (24 August 2026) =
 
 *Bug Fixes:*
 
-- fix fatal error with Confirm field when conditionally changing paired field value
-- fix radio field tab focus incorrectly triggering conditions
-- fix keyboard navigation substring matching in checkbox list conditionals
-- bypass validation for hidden Password/Email Confirm fields
-- fix required fields in hidden Repeater fields blocking form submission
-
-*Enhancements:*
-
-- add editable labels and drag-and-drop sorting for conditional logic statements
-- improve accessibility and UX for condition builder UI
+- fix hiding selection items now updates merge tags
+- fix date/time conditional comparisons with different formats
+- fix server-side required validation respects CL-hidden field state
 
 == Changelog ==
+= 3.1.5 (24 August 2026) =
+
+*Bug Fixes:*
+
+- fix hiding selection items now updates merge tags
+- fix date/time conditional comparisons with different formats
+- fix server-side required validation respects CL-hidden field state
+
+= 3.1.4 (29 June 2026) =
+
+*Bug Fixes:*
+
+- fix data loss when showing/hiding fields based on calculations
+- fix date field "Default to Current Date" not evaluating on form load
+- fix ShowField early return skipping visibility and required updates
+- fix shared FieldsCollection mutation corrupting condition evaluation
+
 = 3.1.3 (30 March 2026) =
 
 *Bug Fixes:*

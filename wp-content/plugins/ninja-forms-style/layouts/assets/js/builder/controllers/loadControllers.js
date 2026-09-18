@@ -7,7 +7,8 @@ define(
 		'controllers/gutterDroppable',
 		'controllers/rowsSortable',
 		'controllers/undo',
-		'controllers/updateFieldOrder'
+		'controllers/updateFieldOrder',
+		'controllers/stylesVisualEditor'
 	], 
 	function
 	(
@@ -18,7 +19,8 @@ define(
 		GutterDroppable,
 		RowsSortable,
 		Undo,
-		UpdateFieldOrder
+		UpdateFieldOrder,
+		StylesVisualEditor
 	)
 	{
 	var controller = Marionette.Object.extend( {
@@ -31,6 +33,7 @@ define(
 			new RowsSortable();
 			new Undo();
 			new UpdateFieldOrder();
+			new StylesVisualEditor();
 		}
 
 	});

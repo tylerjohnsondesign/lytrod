@@ -2,18 +2,6 @@
 
 return apply_filters( 'ninja_forms_styles_field_type_section', array(
     
-    'wrap' => array(
-        'name' => 'wrap',
-        'label' => __( 'Wrap', 'ninja-forms-layout-styles' ),
-        'selector' => '.field-wrap',
-        'except' => array(
-            'hr',
-            'html',
-            'password',
-            'passwordconfirm',
-        )
-    ),
-    
     'label' => array(
         'name' => 'label',
         'label' => __( 'Label', 'ninja-forms-layout-styles' ),
@@ -21,11 +9,13 @@ return apply_filters( 'ninja_forms_styles_field_type_section', array(
         'except' => array(
             'hr',
             'html',
+            'button',
             'password',
             'passwordconfirm',
+            'submit',
         )
     ),
-    
+
     'field' => array(
         'name' => 'field',
         'label' => __( 'Element', 'ninja-forms-layout-styles' ),
@@ -45,6 +35,20 @@ return apply_filters( 'ninja_forms_styles_field_type_section', array(
         )
     ),
 
+    'wrap' => array(
+        'name' => 'wrap',
+        'label' => __( 'Wrap', 'ninja-forms-layout-styles' ),
+        'selector' => '.field-wrap',
+        'except' => array(
+            'hr',
+            'html',
+            'button',
+            'password',
+            'passwordconfirm',
+            'submit',
+        )
+    ),
+
     /*
     |--------------------------------------------------------------------------
     | Button Specific Sections
@@ -56,6 +60,7 @@ return apply_filters( 'ninja_forms_styles_field_type_section', array(
         'label' => __( 'Element Hover', 'ninja-forms-layout-styles' ),
         'selector' => '.nf-field-element .ninja-forms-field:hover',
         'only' => array(
+            'button',
             'submit'
         )
     ),
@@ -65,17 +70,6 @@ return apply_filters( 'ninja_forms_styles_field_type_section', array(
     | List Specific Sections
     |--------------------------------------------------------------------------
     */
-
-    'list-item-row' => array(
-        'name' => 'list-item-row',
-        'label' => __( 'List Item Row', 'ninja-forms-layout-styles' ),
-        'selector' => 'li',
-        'only' => array(
-            'listcheckbox',
-            'listradio',
-            'terms'
-        )
-    ),
 
     'list-item-label' => array(
         'name' => 'list-item-label',
@@ -88,8 +82,7 @@ return apply_filters( 'ninja_forms_styles_field_type_section', array(
         )
     ),
 
-    // Removed these because I'm fairly certian they're not being applied anyway.
-    /*'list-item-element' => array(
+    'list-item-element' => array(
         'name' => 'list-item-element',
         'label' => __( 'List Item Element', 'ninja-forms-layout-styles' ),
         'selector' => 'li input',
@@ -98,7 +91,18 @@ return apply_filters( 'ninja_forms_styles_field_type_section', array(
             'listradio',
             'terms'
         )
-    ),*/
+    ),
+
+    'list-item-row' => array(
+        'name' => 'list-item-row',
+        'label' => __( 'List Item Row', 'ninja-forms-layout-styles' ),
+        'selector' => 'li',
+        'only' => array(
+            'listcheckbox',
+            'listradio',
+            'terms'
+        )
+    ),
 
     /*
     |--------------------------------------------------------------------------
@@ -173,15 +177,6 @@ return apply_filters( 'ninja_forms_styles_field_type_section', array(
     |--------------------------------------------------------------------------
     */
 
-    'password-wrap' => array(
-        'name' => 'password-wrap',
-        'label' => __( 'Wrap', 'ninja-forms-layout-styles' ),
-        'selector' => '.password-wrap',
-        'only' => array(
-            'password',
-        )
-    ),
-
     'password-label' => array(
         'name' => 'password-label',
         'label' => __( 'Label', 'ninja-forms-layout-styles' ),
@@ -200,12 +195,12 @@ return apply_filters( 'ninja_forms_styles_field_type_section', array(
         )
     ),
 
-    'confirm-wrap' => array(
-        'name' => 'confirm-wrap',
+    'password-wrap' => array(
+        'name' => 'password-wrap',
         'label' => __( 'Wrap', 'ninja-forms-layout-styles' ),
-        'selector' => '.passwordconfirm-wrap',
+        'selector' => '.password-wrap',
         'only' => array(
-            'passwordconfirm',
+            'password',
         )
     ),
 
@@ -222,6 +217,15 @@ return apply_filters( 'ninja_forms_styles_field_type_section', array(
         'name' => 'confirm-element',
         'label' => __( 'Field', 'ninja-forms-layout-styles' ),
         'selector' => '.passwordconfirm-wrap .nf-field-element .nf-element',
+        'only' => array(
+            'passwordconfirm',
+        )
+    ),
+
+    'confirm-wrap' => array(
+        'name' => 'confirm-wrap',
+        'label' => __( 'Wrap', 'ninja-forms-layout-styles' ),
+        'selector' => '.passwordconfirm-wrap',
         'only' => array(
             'passwordconfirm',
         )

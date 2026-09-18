@@ -782,6 +782,12 @@ define( 'views/advanced/whenItem',[], function( ) {
 	var view = Marionette.ItemView.extend({
 		template: "#tmpl-nf-cl-advanced-when-item",
 
+		attributes: function() {
+			return {
+				'data-qa-id': this.model.get( 'qaId' )
+			};
+		},
+
 		initialize: function() {
 			this.listenTo( this.model, 'change', this.render );
 		},
@@ -822,7 +828,13 @@ define( 'views/advanced/whenItem',[], function( ) {
 define( 'views/advanced/firstWhenItem',[], function( ) {
 	var view = Marionette.ItemView.extend({
 		template: "#tmpl-nf-cl-advanced-first-when-item",
-		
+
+		attributes: function() {
+			return {
+				'data-qa-id': this.model.get( 'qaId' )
+			};
+		},
+
 		initialize: function() {
 			this.listenTo( this.model, 'change', this.render );
 		},
@@ -909,6 +921,12 @@ define( 'views/advanced/thenItem',[], function( ) {
 	var view = Marionette.ItemView.extend({
 		template: "#tmpl-nf-cl-trigger-item",
 
+		attributes: function() {
+			return {
+				'data-qa-id': this.model.get( 'qaId' )
+			};
+		},
+
 		initialize: function() {
 			this.listenTo( this.model, 'change', this.render );
 		},
@@ -958,6 +976,12 @@ define( 'views/advanced/thenCollection',[ 'views/advanced/thenItem' ], function(
 define( 'views/advanced/elseItem',[], function( ) {
 	var view = Marionette.ItemView.extend({
 		template: "#tmpl-nf-cl-trigger-item",
+
+		attributes: function() {
+			return {
+				'data-qa-id': this.model.get( 'qaId' )
+			};
+		},
 
 		initialize: function() {
 			this.listenTo( this.model, 'change', this.render );
@@ -1010,7 +1034,8 @@ define( 'views/advanced/conditionItem',[ 'views/advanced/whenCollection', 'views
 
 		attributes: function() {
 			return {
-				'data-cid': this.model.cid
+				'data-cid': this.model.cid,
+				'data-qa-id': this.model.get( 'qaId' )
 			};
 		},
 
@@ -2419,7 +2444,11 @@ define( 'controllers/fieldDate',[], function() {
 			// Get our date
 			let date = jQuery( e.target ).parent().parent().find( "[data-type='date']" ).val();
 			if ( 'undefined' == typeof date ) {
-				date = '1970-01-02';
+				// Time Only mode has no date input (see tmpl-nf-cl-value-date-time_only),
+				// so this always hits the fallback. Must match the '1970/01/01' sentinel
+				// used by both the front-end (whenModel.js) and PHP (ConditionModel::compare())
+				// runtime comparisons, or Time Only conditions never match regardless of hour/minute.
+				date = '1970-01-01';
 			}
 			dateString += date + 'T';
 

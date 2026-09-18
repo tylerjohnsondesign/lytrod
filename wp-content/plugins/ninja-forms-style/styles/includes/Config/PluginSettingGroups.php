@@ -68,7 +68,7 @@ return apply_filters( 'ninja_forms_styles_setting_groups', array(
             'field' => array(
                 'name' => 'field',
                 'label' => __( 'Element Styles', 'ninja-forms-layout-styles' ),
-                'selector' => '.nf-form-content .nf-field-element .ninja-forms-field:not(select)'
+                'selector' => '.nf-form-content .nf-field-element input.ninja-forms-field:not([type="button"]):not([type="submit"]):not([type="reset"]):not([type="checkbox"]):not([type="radio"]), .nf-form-content .nf-field-element textarea.ninja-forms-field'
             ),
         )
     ),
@@ -261,7 +261,7 @@ return apply_filters( 'ninja_forms_styles_setting_groups', array(
                 'type' => 'fieldset',
                 'label' => __( 'Previous Button Styles', 'ninja-forms-layout-styles' ),
                 'width' => 'full',
-                'selector' => '.nf-previous-item > .nf-previous',
+                'selector' => '.nf-form-content .nf-previous-item > .nf-previous',
             ),
 
             'next_button_styles' => array(
@@ -269,7 +269,7 @@ return apply_filters( 'ninja_forms_styles_setting_groups', array(
                 'type' => 'fieldset',
                 'label' => __( 'Next Button Styles', 'ninja-forms-layout-styles' ),
                 'width' => 'full',
-                'selector' => '.nf-next-item .nf-next',
+                'selector' => '.nf-form-content .nf-next-item .nf-next',
             ),
 
             'navigation_hover_styles' => array(
@@ -277,7 +277,7 @@ return apply_filters( 'ninja_forms_styles_setting_groups', array(
                 'type' => 'fieldset',
                 'label' => __( 'Navigation Hover Styles', 'ninja-forms-layout-styles' ),
                 'width' => 'full',
-                'selector' => '.nf-next-previous input:hover',
+                'selector' => '.nf-form-content .nf-next-previous input:hover',
             ),
         )
     ),

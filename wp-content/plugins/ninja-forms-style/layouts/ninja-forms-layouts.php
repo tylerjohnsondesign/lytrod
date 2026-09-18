@@ -51,10 +51,85 @@ final class NF_Layouts
 
     public function admin_scripts()
     {
-        $ver = self::VERSION;
-        wp_enqueue_style(  'nf-layout-builder', plugin_dir_url( __FILE__ ) . 'assets/css/builder.css', array(), $ver );
-        wp_enqueue_script( 'nf-layout-builder', plugin_dir_url( __FILE__ ) . 'assets/js/min/builder.js', array( 'nf-builder' ), $ver );
-        wp_enqueue_script( 'jquery-split',      plugin_dir_url( __FILE__ ) . 'assets/js/lib/split.js',   array( 'jquery' ),     $ver );
+        $builder_deps = array( 'nf-builder' );
+
+        if ( class_exists( 'NF_Styles', false ) ) {
+            wp_enqueue_script( 'nf-styles-shared', NF_Styles::$url . 'assets/js/nf-styles-shared.js', array( 'jquery' ), NF_Styles::asset_version( 'assets/js/nf-styles-shared.js' ), true );
+            $builder_deps[] = 'nf-styles-shared';
+        }
+
+        wp_enqueue_style(  'nf-layout-builder', plugin_dir_url( __FILE__ ) . 'assets/css/builder.css', array(), self::asset_version( 'assets/css/builder.css' ) );
+        wp_enqueue_script( 'nf-layout-builder', plugin_dir_url( __FILE__ ) . 'assets/js/min/builder.js', $builder_deps, self::asset_version( 'assets/js/min/builder.js' ) );
+        wp_enqueue_script( 'jquery-split',      plugin_dir_url( __FILE__ ) . 'assets/js/lib/split.js',   array( 'jquery' ),     self::asset_version( 'assets/js/lib/split.js' ) );
+        if ( class_exists( 'NF_Styles', false ) && method_exists( 'NF_Styles', 'get_theme_color_palette' ) ) {
+            wp_add_inline_script( 'nf-layout-builder', 'window.nfStylesThemePalette = ' . wp_json_encode( NF_Styles::get_theme_color_palette() ) . ';', 'before' );
+        }
+        if ( class_exists( 'NF_Styles', false ) && method_exists( 'NF_Styles', 'config' ) ) {
+            // Transform PHP config keys to JS conventions (snake_case → camelCase).
+            $visual_controls = array();
+            foreach ( NF_Styles::config( 'VisualControls' ) as $key => $control ) {
+                $js_control = $control;
+                if ( isset( $control['unit_options'] ) ) {
+                    $js_control['unitOptions'] = $control['unit_options'];
+                    unset( $js_control['unit_options'] );
+                }
+                if ( isset( $control['default'] ) ) {
+                    $js_control['defaultValue'] = $control['default'];
+                    unset( $js_control['default'] );
+                }
+                $visual_controls[ $key ] = $js_control;
+            }
+            wp_add_inline_script( 'nf-layout-builder', 'window.nfStylesVisualControls = ' . wp_json_encode( $visual_controls ) . ';', 'before' );
+        }
+        // Control labels (background, text, fontSize, etc.) now come from PHP via
+        // nfStylesVisualControls. Only UI strings that aren't in the control config remain here.
+        wp_localize_script( 'nf-layout-builder', 'nfStylesL10n', array(
+            'groupColor'          => __( 'Color', 'ninja-forms-layout-styles' ),
+            'groupType'           => __( 'Type', 'ninja-forms-layout-styles' ),
+            'groupSpacing'        => __( 'Spacing', 'ninja-forms-layout-styles' ),
+            'groupLayout'         => __( 'Layout', 'ninja-forms-layout-styles' ),
+            'groupBorder'         => __( 'Border', 'ninja-forms-layout-styles' ),
+            'sides'               => __( 'Sides', 'ninja-forms-layout-styles' ),
+            'top'                 => __( 'Top', 'ninja-forms-layout-styles' ),
+            'right'               => __( 'Right', 'ninja-forms-layout-styles' ),
+            'bottom'              => __( 'Bottom', 'ninja-forms-layout-styles' ),
+            'left'                => __( 'Left', 'ninja-forms-layout-styles' ),
+            'cssBadge'            => __( 'CSS', 'ninja-forms-layout-styles' ),
+            'defaultLabel'        => __( 'Default', 'ninja-forms-layout-styles' ),
+            'cancel'              => __( 'Cancel', 'ninja-forms-layout-styles' ),
+            'theme'               => __( 'Theme', 'ninja-forms-layout-styles' ),
+            'themeColors'         => __( 'Theme colors', 'ninja-forms-layout-styles' ),
+            'hex'                 => __( 'Hex', 'ninja-forms-layout-styles' ),
+            'openColorPicker'     => __( 'Open color picker', 'ninja-forms-layout-styles' ),
+            'cssMode'             => __( 'CSS mode', 'ninja-forms-layout-styles' ),
+            'cssModeHelp'         => __( 'CSS mode shows the original advanced style fields for users who want direct CSS-style control.', 'ninja-forms-layout-styles' ),
+            'aboutCssMode'        => __( 'About CSS mode', 'ninja-forms-layout-styles' ),
+            'cssValuesActive'     => __( 'CSS values active', 'ninja-forms-layout-styles' ),
+            'resetStyles'         => __( 'Reset styles', 'ninja-forms-layout-styles' ),
+            'resetAllHint'        => __( 'Reset every style section in this panel', 'ninja-forms-layout-styles' ),
+            'resetSectionHint'    => __( 'Reset styles in this section', 'ninja-forms-layout-styles' ),
+            'resetAllTitle'       => __( 'Reset all styles?', 'ninja-forms-layout-styles' ),
+            'resetAllBody'        => __( 'This will clear all custom styles in this Styles panel, including Design and CSS mode values. This cannot be undone after you save.', 'ninja-forms-layout-styles' ),
+            'resetAllConfirm'     => __( 'Reset All Styles', 'ninja-forms-layout-styles' ),
+            /* translators: %s: style section label. */
+            'resetGroupTitle'     => __( 'Reset %s?', 'ninja-forms-layout-styles' ),
+            /* translators: %s: style section label. */
+            'resetGroupBody'      => __( 'This will clear Design and CSS mode values for %s. This cannot be undone after you save.', 'ninja-forms-layout-styles' ),
+            'resetGroupConfirm'   => __( 'Reset Styles', 'ninja-forms-layout-styles' ),
+            /* translators: %s: style section label. */
+            'resetLabel'          => __( 'Reset %s', 'ninja-forms-layout-styles' ),
+            /* translators: %s: style control label. */
+            'chooseColor'         => __( 'Choose %s color', 'ninja-forms-layout-styles' ),
+            /* translators: %s: style control label. */
+            'clearColor'          => __( 'Clear %s color', 'ninja-forms-layout-styles' ),
+            /* translators: %s: style control label. */
+            'clearValue'          => __( 'Clear %s', 'ninja-forms-layout-styles' ),
+            /* translators: %s: style control label. */
+            'setValue'            => __( 'Set %s', 'ninja-forms-layout-styles' ),
+            /* translators: %s: style control label. */
+            'unitFor'             => __( '%s unit', 'ninja-forms-layout-styles' ),
+            'styles'              => __( 'styles', 'ninja-forms-layout-styles' ),
+        ) );
         ?>
         <script id="nf-tmpl-empty-cell" type="text/template">
             <div class="no-fields">
@@ -90,9 +165,8 @@ final class NF_Layouts
 
     public function display_scripts()
     {
-        $ver = self::VERSION;
-        wp_enqueue_style(  'nf-layout-front-end', plugin_dir_url( __FILE__ ) . 'assets/css/display-structure.css', array(), $ver );
-        wp_enqueue_script( 'nf-layout-front-end', plugin_dir_url( __FILE__ ) . 'assets/js/min/front-end.js', array( 'nf-front-end' ), $ver );
+        wp_enqueue_style(  'nf-layout-front-end', plugin_dir_url( __FILE__ ) . 'assets/css/display-structure.css', array(), self::asset_version( 'assets/css/display-structure.css' ) );
+        wp_enqueue_script( 'nf-layout-front-end', plugin_dir_url( __FILE__ ) . 'assets/js/min/front-end.js', array( 'nf-front-end' ), self::asset_version( 'assets/js/min/front-end.js' ) );
         ?>
         <script id="nf-tmpl-cell" type="text/template">
             <nf-fields></nf-fields>
@@ -103,6 +177,18 @@ final class NF_Layouts
         </script>
 
         <?php
+    }
+
+    /**
+     * Cache-busting version for one of this component's assets.
+     *
+     * @since 3.0.30
+     * @param string $relative_path Asset path relative to this file's directory.
+     * @return string Version string for wp_enqueue_style/script.
+     */
+    public static function asset_version( $relative_path )
+    {
+        return NF_Layout_Styles_Assets::version( plugin_dir_path( __FILE__ ) . $relative_path, self::VERSION );
     }
 
     /**

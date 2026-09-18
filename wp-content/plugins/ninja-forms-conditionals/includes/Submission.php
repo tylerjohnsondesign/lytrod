@@ -46,6 +46,10 @@ class NF_ConditionalLogic_Submission
             return $data;
         }
 
+        // CL processes on ninja_forms_submit_data, before NF core computes calculations.
+        // Pre-compute calc values here so calc-based conditions can evaluate correctly.
+        $this->pre_process_calcs( $form_settings, $data );
+
         foreach( $data[ 'settings' ][ 'conditions' ] as $condition ){
             $condition = new NF_ConditionalLogic_ConditionModel( $condition, $this->fieldsCollection, $data );
             $condition->process();
@@ -65,16 +69,35 @@ class NF_ConditionalLogic_Submission
             unset( $field_settings[ 'conditionally_required' ] );
         }
 
-        // Bypass custom field-type validation for hidden confirmation fields.
-        // When a passwordconfirm or confirm field is hidden, its value is cleared to false.
-        // Without this bypass, the password/email matching validation still runs and fails.
-        if( isset( $field_settings[ 'visible' ] ) && false === $field_settings[ 'visible' ] ) {
+        // A field hidden by Conditional Logic should never block submission, whether
+        // or not a separate "unset required" action was also configured on the same
+        // rule — this mirrors validateRequired.js, which already skips required
+        // validation for any field with visible:false client-side, unconditionally.
+        //
+        // $field_settings itself can't be trusted for 'visible' here: NF core's
+        // submission whitelist (added for #8011) strips everything except
+        // value/files/save_id when merging submitted data onto the DB-sourced field
+        // settings, before this filter ever runs. 'visible' is a runtime condition
+        // result, not a stored setting, so it never survives that merge for plain
+        // fields. Look it up in our own FieldsCollection instead — same source
+        // is_parent_repeater_hidden() below already relies on for the same reason.
+        if ( $this->is_field_hidden( $field_settings ) ) {
+            if ( ! empty( $field_settings[ 'required' ] ) ) {
+                $field_settings[ 'required' ] = false;
+            }
+
+            // Bypass custom field-type validation for hidden confirmation fields.
+            // When a passwordconfirm or confirm field is hidden, its value is cleared to false.
+            // Without this bypass, the password/email matching validation still runs and fails.
             $fields_with_custom_validation = array( 'passwordconfirm', 'confirm' );
             if( isset( $field_settings[ 'type' ] ) && in_array( $field_settings[ 'type' ], $fields_with_custom_validation ) ) {
                 $field_settings[ 'type' ] = 'textbox';
             }
         }
         // Bypass required validation for child fields inside a hidden repeater.
+        // They aren't standalone entries in the FieldsCollection at all (nested
+        // inside the parent Repeater's 'fields' setting instead), so the check
+        // above can't find them by ID — kept as a fallback.
         // Repeater children are validated individually by NF core but are not
         // present as standalone entries in the FieldsCollection — they are nested
         // inside the parent Repeater's 'fields' setting. When a Repeater is hidden
@@ -87,6 +110,38 @@ class NF_ConditionalLogic_Submission
         }
 
         return $field_settings;
+    }
+
+    /**
+     * Check whether a field itself has been hidden by conditional logic.
+     *
+     * $field_settings can't be trusted for this — core's submission whitelist
+     * strips 'visible' before before_validate_field() runs. Look it up directly
+     * in our own FieldsCollection, which reflects the real-time result of this
+     * request's own condition processing (parse_fields(), run earlier on
+     * ninja_forms_submit_data).
+     *
+     * @param  array $field_settings Settings for the field being validated.
+     * @return bool True if this field has been conditionally hidden.
+     */
+    private function is_field_hidden( array $field_settings ): bool
+    {
+        if ( empty( $this->fieldsCollection ) ) {
+            return false;
+        }
+
+        $field_id = $field_settings[ 'id' ] ?? null;
+        if ( empty( $field_id ) ) {
+            return false;
+        }
+
+        $tracked_fields = $this->fieldsCollection->to_array();
+        if ( ! isset( $tracked_fields[ $field_id ] ) ) {
+            return false;
+        }
+
+        $tracked = $tracked_fields[ $field_id ];
+        return isset( $tracked[ 'visible' ] ) && false === $tracked[ 'visible' ];
     }
 
     /**
@@ -134,6 +189,60 @@ class NF_ConditionalLogic_Submission
         }
 
         return false;
+    }
+
+    /**
+     * Pre-compute calculation values so that calc-based conditions can evaluate
+     * correctly on the server side.
+     *
+     * NF core computes calculations inside process(), which runs after the
+     * ninja_forms_submit_data filter where CL hooks. Field merge tags are also
+     * not yet registered at that point. We resolve {field:key} tags manually
+     * from FieldsCollection, then apply the ninja_forms_calc_setting filter to
+     * handle any {calc:name} cross-references from previously computed calcs.
+     *
+     * @param array $form_settings  Form settings from the DB (includes 'calculations').
+     * @param array $data           Full form submission data.
+     */
+    protected function pre_process_calcs( $form_settings, $data )
+    {
+        if ( empty( $form_settings[ 'calculations' ] ) ) {
+            return;
+        }
+
+        $calcs_merge_tags = Ninja_Forms()->merge_tags[ 'calcs' ];
+
+        // Build a field key => submitted value map from the FieldsCollection.
+        $fields_by_key = array();
+        foreach ( $this->fieldsCollection->to_array() as $field ) {
+            if ( isset( $field[ 'key' ] ) ) {
+                $fields_by_key[ $field[ 'key' ] ] = isset( $field[ 'value' ] ) ? (string) $field[ 'value' ] : '';
+            }
+        }
+
+        $decimal_point = isset( $data[ 'settings' ][ 'decimal_point' ] ) ? $data[ 'settings' ][ 'decimal_point' ] : '.';
+        $thousands_sep  = isset( $data[ 'settings' ][ 'thousands_sep' ] )  ? $data[ 'settings' ][ 'thousands_sep' ]  : ',';
+
+        foreach ( $form_settings[ 'calculations' ] as $calc ) {
+            $eq = $calc[ 'eq' ];
+
+            // Replace {field:key} tags with submitted values.
+            // NF core's field merge tags are not registered yet at this hook priority.
+            foreach ( $fields_by_key as $field_key => $field_value ) {
+                $eq = str_replace( '{field:' . $field_key . '}', $field_value, $eq );
+            }
+
+            // Apply the calc setting filter to resolve any {calc:name} cross-references
+            // from calcs already processed in this loop.
+            $eq = apply_filters( 'ninja_forms_calc_setting', $eq );
+
+            // Scrub remaining unresolved merge tags (deleted/non-existent fields or calcs).
+            $eq = preg_replace( '/{([a-zA-Z0-9]|:|_|-)*}/', '0', $eq );
+
+            $dec = ( isset( $calc[ 'dec' ] ) && '' !== $calc[ 'dec' ] ) ? $calc[ 'dec' ] : 2;
+
+            $calcs_merge_tags->set_merge_tags( $calc[ 'name' ], $eq, $dec, $decimal_point, $thousands_sep );
+        }
     }
 
     public function parse_actions( $actions, $form_data )

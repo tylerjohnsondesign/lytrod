@@ -12,6 +12,7 @@ final class NF_Styles
     const NAME    = 'Styles';
     const AUTHOR  = 'WP Ninjas';
     const PREFIX  = 'NF_Styles';
+    const FIELD_STYLES_CACHE_VERSION = '3';
 
     /**
      * @var NF_Layouts
@@ -86,6 +87,68 @@ final class NF_Styles
     public function ninja_forms_loaded()
     {
         new NF_Styles_Admin_Submenu();
+    }
+
+    /**
+     * Build the color palette exposed to the visual style controls.
+     *
+     * Reads colors from the active theme's theme.json global settings and
+     * add_theme_support( 'editor-color-palette' ), validating and de-duplicating
+     * each entry into name/slug/color items.
+     *
+     * @return (Array) List of palette colors as associative arrays.
+     */
+    public static function get_theme_color_palette()
+    {
+        $palette = array();
+        $groups = array();
+
+        if ( function_exists( 'wp_get_global_settings' ) ) {
+            $settings = wp_get_global_settings();
+            if ( isset( $settings[ 'color' ][ 'palette' ] ) && is_array( $settings[ 'color' ][ 'palette' ] ) ) {
+                $groups = $settings[ 'color' ][ 'palette' ];
+            }
+        }
+
+        $theme_support = get_theme_support( 'editor-color-palette' );
+        if ( empty( $groups ) && is_array( $theme_support ) && isset( $theme_support[0] ) && is_array( $theme_support[0] ) ) {
+            $groups[ 'theme' ] = $theme_support[0];
+        }
+
+        if ( ! empty( $groups[ 'theme' ] ) ) {
+            $groups = array( 'theme' => $groups[ 'theme' ] );
+        } elseif ( ! empty( $groups[ 'custom' ] ) ) {
+            $groups = array( 'custom' => $groups[ 'custom' ] );
+        } elseif ( ! empty( $groups[ 'default' ] ) ) {
+            $groups = array( 'default' => $groups[ 'default' ] );
+        }
+
+        foreach ( $groups as $origin => $colors ) {
+            if ( ! is_array( $colors ) ) {
+                continue;
+            }
+
+            foreach ( $colors as $color ) {
+                if ( empty( $color[ 'color' ] ) || ! is_string( $color[ 'color' ] ) ) {
+                    continue;
+                }
+
+                if ( ! preg_match( '/^#[0-9a-f]{3}([0-9a-f]{3})?$/i', $color[ 'color' ] ) ) {
+                    continue;
+                }
+
+                $palette[] = array(
+                    'name' => isset( $color[ 'name' ] ) ? sanitize_text_field( $color[ 'name' ] ) : '',
+                    'slug' => isset( $color[ 'slug' ] ) ? sanitize_title( $color[ 'slug' ] ) : '',
+                    'color' => sanitize_hex_color( $color[ 'color' ] ),
+                    'origin' => sanitize_key( $origin ),
+                );
+            }
+        }
+
+        return array_values( array_filter( $palette, function( $color ) {
+            return ! empty( $color[ 'color' ] );
+        } ) );
     }
 
     public function add_form_settings_groups( $groups )
@@ -163,7 +226,7 @@ final class NF_Styles
             $style_settings = array_merge( $style_settings, self::config( 'RatingFieldSettings' ) );
         }
 
-        if( 'submit' == $field_type ){
+        if( in_array( $field_type, array( 'button', 'submit' ), true ) ){
             $style_settings = array_merge( $style_settings, self::config( 'ButtonFieldSettings' ) );
             if( isset( $style_settings[ 'label_styles' ] ) ){
                 unset( $style_settings[ 'label_styles' ] );
@@ -264,40 +327,15 @@ final class NF_Styles
 
                     $styles[ $selector ][ $element ] = $style;
 
-                    if( 'field_settings' == $group_name && 'element' == $section_name ){
-                        if( Ninja_Forms()->get_setting( 'opinionated_styles' ) ){
-                            switch ($element) {
-                                case 'background-color':
-                                case 'border':
-                                case 'border-style':
-                                case 'border-color':
-                                    $styles[ '.nf-fields .nf-field .list-select-wrap .nf-field-element > div' ][ $element ] = $style; // Select
-                                    $styles[ '.nf-fields .nf-field .checkbox-wrap .nf-field-label label::after' ][ $element ] = $style; // Checkbox
-                                    $styles[ '.nf-fields .nf-field .nf-field-element label::after' ][ $element ] = $style; // Checkbox List, Radio List
-                                    break;
-                                case 'color':
-                                case 'font-size':
-                                    $styles[ '.nf-fields .nf-field .list-select-wrap .ninja-forms-field' ][ $element ] = $style; // Select
-                                    $styles[ '.nf-field-container .checkbox-wrap .nf-field-label label.nf-checked-label::before' ][ $element ] = $style; // Checkbox
-                                    $styles[ '.nf-fields .listcheckbox-wrap .nf-field-element label.nf-checked-label::before' ][ $element ] = $style; // Checkbox List
-                                    break;
-                                case 'display':
-                                case 'float':
-                                    continue 2;
-                                default:
-                                    $selector = '.ninja-forms-field';
-                                    $styles[ '.nf-field-element > div' ][ $element ] = $style;
-                            }
+                    if( 'form_settings' == $group_name && 'container' == $section_name && 'color' == $element ){
+                        // Themes commonly pin legend color at the root, which beats
+                        // inheritance from .nf-form-cont, so the configured container
+                        // text color must reach fieldset legends (repeater groups) explicitly.
+                        $styles[ '.nf-form-cont .nf-form-content fieldset legend' ][ $element ] = $style;
+                    }
 
-                            if( 'border-color' == $element ){
-                                $styles[ 'div::after' ][ 'color' ] = $style;
-                            }
-
-                            if( 'color' == $element ) {
-                                $styles['.nf-fields .listradio-wrap .nf-field-element label.nf-checked-label::before']['background-color'] = $style; // Radio List
-                                $styles['.nf-fields .listradio-wrap .nf-field-element label.nf-checked-label::after']['border-color'] = $style; // Radio List
-                            }
-                        }
+                    if( 'field_settings' == $group_name && 'field' == $section_name ){
+                        $this->add_default_field_element_style_mappings( $styles, $element, $style );
                     }
                 }
             }
@@ -440,6 +478,8 @@ final class NF_Styles
 
                         $styles[$selector][$rule] = $value;
 
+                        $this->maybe_add_native_choice_styles( $styles, $selector, $field_type, $section, $rule, $value );
+
                     }
                 }
             }
@@ -453,6 +493,202 @@ final class NF_Styles
         set_transient( 'ninja_forms_styles_plugin_styles', $output );
         echo $output;
 
+    }
+
+    /**
+     * Map a single style rule onto the default field element selectors.
+     *
+     * Writes the rule/value into the shared $styles map for native select
+     * shells and text, honoring the opinionated-styles setting.
+     *
+     * @param (Array)  $styles Style map, passed by reference and mutated in place.
+     * @param (String) $rule   CSS property name.
+     * @param (String) $value  CSS value to assign.
+     * @return (void)
+     */
+    protected function add_default_field_element_style_mappings( &$styles, $rule, $value )
+    {
+        $opinionated_styles = Ninja_Forms()->get_setting( 'opinionated_styles' );
+
+        $native_select_selector = '.nf-form-content .nf-field-element select.ninja-forms-field';
+        $select_shell_selector = '.nf-form-content .list-select-wrap .nf-field-element > div, .nf-form-content .listselect-wrap .nf-field-element > div, .nf-form-content .listcountry-wrap .nf-field-element > div, .nf-form-content .liststate-wrap .nf-field-element > div';
+        $select_text_selector = '.nf-form-content .list-select-wrap .ninja-forms-field, .nf-form-content .listselect-wrap .ninja-forms-field, .nf-form-content .listcountry-wrap .ninja-forms-field, .nf-form-content .liststate-wrap .ninja-forms-field';
+        $select_arrow_selector = '.nf-form-content .list-select-wrap .nf-field-element > div::after, .nf-form-content .listselect-wrap .nf-field-element > div::after, .nf-form-content .listcountry-wrap .nf-field-element > div::after, .nf-form-content .liststate-wrap .nf-field-element > div::after';
+        $choice_input_selector = '.nf-form-content .checkbox-wrap .nf-field-element input[type="checkbox"].ninja-forms-field, .nf-form-content .listcheckbox-wrap .nf-field-element input[type="checkbox"], .nf-form-content .listradio-wrap .nf-field-element input[type="radio"], .nf-form-content .terms-wrap .nf-field-element input[type="checkbox"]';
+        $checkbox_input_selector = '.nf-form-content .checkbox-wrap .nf-field-element input[type="checkbox"].ninja-forms-field, .nf-form-content .listcheckbox-wrap .nf-field-element input[type="checkbox"], .nf-form-content .terms-wrap .nf-field-element input[type="checkbox"]';
+        $radio_input_selector = '.nf-form-content .listradio-wrap .nf-field-element input[type="radio"]';
+        $choice_box_selector = '.nf-form-content .checkbox-wrap .nf-field-label label::after, .nf-form-content .listcheckbox-wrap .nf-field-element label::after, .nf-form-content .listradio-wrap .nf-field-element label::after, .nf-form-content .terms-wrap .nf-field-element label::after';
+        $choice_checked_selector = '.nf-form-content .checkbox-wrap .nf-field-label label.nf-checked-label::before, .nf-form-content .listcheckbox-wrap .nf-field-element label.nf-checked-label::before, .nf-form-content .terms-wrap .nf-field-element label.nf-checked-label::before';
+        $radio_checked_selector = '.nf-form-content .listradio-wrap .nf-field-element label.nf-checked-label::before';
+        $radio_checked_border_selector = '.nf-form-content .listradio-wrap .nf-field-element label.nf-checked-label::after';
+
+        switch( $rule ){
+            case 'background-color':
+            case 'border':
+            case 'border-style':
+            case 'border-color':
+                $styles[ $choice_input_selector ][ $rule ] = $value;
+                if( $opinionated_styles ){
+                    $styles[ $select_shell_selector ][ $rule ] = $value;
+                    $styles[ $choice_box_selector ][ $rule ] = $value;
+                } else {
+                    $styles[ $native_select_selector ][ $rule ] = $value;
+                    $this->maybe_add_native_choice_styles( $styles, $choice_input_selector, 'checkbox', 'element', $rule, $value, $checkbox_input_selector, $radio_input_selector );
+                }
+                if( 'border-color' == $rule && $opinionated_styles ){
+                    $styles[ $select_arrow_selector ][ 'color' ] = $value;
+                    $styles[ $radio_checked_border_selector ][ 'border-color' ] = $value;
+                }
+                break;
+            case 'color':
+                if( $opinionated_styles ){
+                    $styles[ $select_text_selector ][ $rule ] = $value;
+                    $styles[ $select_arrow_selector ][ $rule ] = $value;
+                    $styles[ $choice_checked_selector ][ $rule ] = $value;
+                    $styles[ $radio_checked_selector ][ 'background-color' ] = $value;
+                    $styles[ $radio_checked_border_selector ][ 'border-color' ] = $value;
+                } else {
+                    $styles[ $native_select_selector ][ $rule ] = $value;
+                    $this->maybe_add_native_choice_styles( $styles, $choice_input_selector, 'checkbox', 'element', $rule, $value, $checkbox_input_selector, $radio_input_selector );
+                }
+                break;
+            case 'font-size':
+                if( $opinionated_styles ){
+                    $styles[ $select_text_selector ][ $rule ] = $value;
+                    $styles[ $choice_checked_selector ][ $rule ] = $value;
+                } else {
+                    $styles[ $native_select_selector ][ $rule ] = $value;
+                }
+                break;
+            case 'margin':
+                $styles[ $choice_input_selector ][ $rule ] = $value;
+                $styles[ $opinionated_styles ? $select_shell_selector : $native_select_selector ][ $rule ] = $value;
+                break;
+            case 'padding':
+            case 'height':
+            case 'width':
+                $styles[ $opinionated_styles ? $select_shell_selector : $native_select_selector ][ $rule ] = $value;
+                break;
+            case 'display':
+            case 'float':
+                break;
+            default:
+                if( $opinionated_styles ){
+                    $styles[ $select_shell_selector ][ $rule ] = $value;
+                }
+        }
+    }
+
+    /**
+     * Add native checkbox/radio choice styling when opinionated styles are off.
+     *
+     * No-ops when opinionated styles are enabled. Otherwise writes the rule/value
+     * (and, for the relevant rules, derived checked-state styling) into the shared
+     * $styles map for the given selector and field type.
+     *
+     * @param (Array)  $styles            Style map, passed by reference and mutated in place.
+     * @param (String) $selector          Base CSS selector for the choice element.
+     * @param (String) $field_type        Field type being styled (e.g. listcheckbox).
+     * @param (String) $section           Style section the rule belongs to.
+     * @param (String) $rule              CSS property name.
+     * @param (String) $value             CSS value to assign.
+     * @param (String) $checkbox_selector Optional selector for native checkbox inputs.
+     * @param (String) $radio_selector    Optional selector for native radio inputs.
+     * @return (void)
+     */
+    protected function maybe_add_native_choice_styles( &$styles, $selector, $field_type, $section, $rule, $value, $checkbox_selector = '', $radio_selector = '' )
+    {
+        if( Ninja_Forms()->get_setting( 'opinionated_styles' ) ){
+            return;
+        }
+
+        if( ! in_array( $field_type, array( 'checkbox', 'listcheckbox', 'listradio', 'terms' ), true ) ){
+            return;
+        }
+
+        if( ! in_array( $section, array( 'element', 'element_styles', 'list_item_element_styles' ), true ) ){
+            return;
+        }
+
+        if( ! $checkbox_selector && in_array( $field_type, array( 'checkbox', 'listcheckbox', 'terms' ), true ) ){
+            $checkbox_selector = $selector;
+        }
+
+        if( ! $radio_selector && 'listradio' == $field_type ){
+            $radio_selector = $selector;
+        }
+
+        $styles[ $selector ][ '-webkit-appearance' ] = 'none';
+        $styles[ $selector ][ 'appearance' ] = 'none';
+        $styles[ $selector ][ 'display' ] = 'inline-flex';
+        $styles[ $selector ][ 'align-items' ] = 'center';
+        $styles[ $selector ][ 'justify-content' ] = 'center';
+        $styles[ $selector ][ 'line-height' ] = '1';
+        $styles[ $selector ][ 'overflow' ] = 'hidden';
+        $styles[ $selector ][ 'box-sizing' ] = 'border-box';
+        $styles[ $selector ][ 'border-width' ] = isset( $styles[ $selector ][ 'border-width' ] ) ? $styles[ $selector ][ 'border-width' ] : '1px';
+        $styles[ $selector ][ 'border-style' ] = isset( $styles[ $selector ][ 'border-style' ] ) ? $styles[ $selector ][ 'border-style' ] : 'solid';
+        $styles[ $selector ][ 'border-color' ] = isset( $styles[ $selector ][ 'border-color' ] ) ? $styles[ $selector ][ 'border-color' ] : '#767676';
+        $styles[ $selector ][ 'min-width' ] = '1em';
+        $styles[ $selector ][ 'max-width' ] = '1em';
+        $styles[ $selector ][ 'width' ] = '1em';
+        $styles[ $selector ][ 'min-height' ] = '1em';
+        $styles[ $selector ][ 'max-height' ] = '1em';
+        $styles[ $selector ][ 'height' ] = '1em';
+        $styles[ $selector ][ 'padding' ] = '0';
+        $styles[ $selector ][ 'margin' ] = '0 0.5em 0 0';
+        $styles[ $selector ][ 'vertical-align' ] = 'middle';
+
+        if( $checkbox_selector ){
+            $styles[ $checkbox_selector ][ 'border-radius' ] = '2px';
+        }
+
+        if( $radio_selector ){
+            $styles[ $radio_selector ][ 'border-radius' ] = '50%';
+        }
+
+        if( in_array( $rule, array( 'background-color', 'border-color', 'color' ), true ) ){
+            $styles[ $selector ][ 'accent-color' ] = $value;
+        }
+
+        if( in_array( $rule, array( 'border-color', 'color' ), true ) ){
+            $checked_selector = $this->append_selector_suffix( $selector, ':checked' );
+            $styles[ $checked_selector ][ 'background-color' ] = $value;
+            $styles[ $checked_selector ][ 'border-color' ] = $value;
+
+            if( $checkbox_selector ){
+                $checked_checkbox_selector = $this->append_selector_suffix( $checkbox_selector, ':checked::before' );
+                $styles[ $checked_checkbox_selector ][ 'content' ] = '"\2713"';
+                $styles[ $checked_checkbox_selector ][ 'display' ] = 'block';
+                $styles[ $checked_checkbox_selector ][ 'color' ] = '#fff';
+                $styles[ $checked_checkbox_selector ][ 'font-size' ] = '0.85em';
+                $styles[ $checked_checkbox_selector ][ 'line-height' ] = '1';
+            }
+
+            if( $radio_selector ){
+                $checked_radio_selector = $this->append_selector_suffix( $radio_selector, ':checked' );
+                $styles[ $checked_radio_selector ][ 'box-shadow' ] = 'inset 0 0 0 3px #fff';
+            }
+        }
+    }
+
+    /**
+     * Append a suffix to each selector in a comma-separated selector list.
+     *
+     * @param (String) $selector Comma-separated CSS selector list.
+     * @param (String) $suffix   Suffix to append to each selector (e.g. ':checked').
+     * @return (String) Comma-separated list with the suffix applied to each selector.
+     */
+    protected function append_selector_suffix( $selector, $suffix )
+    {
+        $selectors = array_map( 'trim', explode( ',', $selector ) );
+        $selectors = array_filter( $selectors );
+
+        foreach( $selectors as $index => $single_selector ){
+            $selectors[ $index ] = $single_selector . $suffix;
+        }
+
+        return implode( ', ', $selectors );
     }
 
     public function localize_form_styles( $form_id, $settings, $fields )
@@ -514,7 +750,7 @@ final class NF_Styles
         $form_instance_id = 0;
         if(strpos($form_id, '_')) list($real_form_id, $form_instance_id) = explode('_', $form_id);
 
-        $cache = get_transient( 'ninja_forms_styles_form_' . $form_id . '_field_styles' );
+        $cache = get_transient( $this->field_styles_cache_key( $form_id ) );
         if( $cache ){
             echo $cache;
             return;
@@ -585,6 +821,7 @@ final class NF_Styles
                     if( ! $field_setting ) continue;
 
                     $rule = $common_setting[ 'name' ];
+                    $skip_base_style = false;
 
                     if( Ninja_Forms()->get_setting( 'opinionated_styles' ) ){
 
@@ -623,28 +860,39 @@ final class NF_Styles
                                 }
                         }
 
-                        if( 'listselect' == $field_type ){
+                        if( 'element_styles' == $field_settings_group[ 'name' ] && in_array( $field_type, array( 'listselect', 'listcountry', 'liststate' ), true ) ){
                             switch ($rule) {
                                 case 'background-color':
                                 case 'border':
                                 case 'border-style':
+                                    $styles[ str_replace( '.ninja-forms-field', '', $selector ) . ' > div' ][$rule] = $field_setting;
+                                    $skip_base_style = true;
+                                    break;
                                 case 'border-color':
                                     $styles[ str_replace( '.ninja-forms-field', '', $selector ) . ' > div' ][$rule] = $field_setting;
+                                    $styles[ str_replace( '.ninja-forms-field', '', $selector ) . ' > div::after' ][ 'color' ] = $field_setting;
+                                    $skip_base_style = true;
                                     break;
                                 case 'color':
+                                    $styles[ str_replace( '.ninja-forms-field', '', $selector ) . ' > div::after' ][ 'color' ] = $field_setting;
+                                    break;
                                 case 'font-size':
                                     $styles[ $selector . ''][$rule] = $field_setting;
+                                    break;
+                                case 'margin':
+                                case 'padding':
+                                case 'height':
+                                case 'width':
+                                    $styles[ str_replace( '.ninja-forms-field', '', $selector ) . ' > div' ][$rule] = $field_setting;
+                                    $skip_base_style = true;
                                     break;
                                 case 'display':
                                 case 'float':
                                     continue 2;
                                 default:
-                                    $selector = '.ninja-forms-field';
-                                    $styles[ ' .nf-field-element > div' ][ $rule ] = $field_setting;
-                            }
-
-                            if( 'border-color' == $rule ){
-                                $styles[ str_replace( '.ninja-forms-field', '', $selector ) . ' > div' . '::after' ][ 'color' ] = $field_setting;
+                                    $styles[ str_replace( '.ninja-forms-field', '', $selector ) . ' > div' ][ $rule ] = $field_setting;
+                                    $skip_base_style = true;
+                                    break;
                             }
                         }
 
@@ -686,7 +934,25 @@ final class NF_Styles
                         }
                     }
 
+                    if( $skip_base_style ){
+                        continue;
+                    }
+
+                    $is_choice_text_color =
+                        ! Ninja_Forms()->get_setting( 'opinionated_styles' )
+                        && 'element_styles' === $field_settings_group[ 'name' ]
+                        && in_array( $field_type, array( 'listcheckbox', 'listradio' ), true )
+                        && 'color' === $rule;
+
+                    if( $is_choice_text_color ){
+                        $label_selector = str_replace( '.nf-field-element .ninja-forms-field', '.nf-field-element li label', $selector );
+                        $styles[ $label_selector ][ $rule ] = $field_setting;
+                        continue;
+                    }
+
                     $styles[$selector][$rule] = $field_setting;
+
+                    $this->maybe_add_native_choice_styles( $styles, $selector, $field_type, $field_settings_group[ 'name' ], $rule, $field_setting );
                 }
             }
 
@@ -844,6 +1110,8 @@ final class NF_Styles
                                 }
 
                                 $styles[ $child_selector ][ $rule ] = $child_field_setting;
+
+                                $this->maybe_add_native_choice_styles( $styles, $child_selector, $child_field_type, $field_settings_group['name'], $rule, $child_field_setting );
                             }
                         }
                     }
@@ -855,7 +1123,7 @@ final class NF_Styles
         $this->localize_styles( $styles, 'Fields Styles' );
         $output = ob_get_clean();
 
-        set_transient( 'ninja_forms_styles_form_' . $form_id . '_field_styles', $output );
+        set_transient( $this->field_styles_cache_key( $form_id ), $output );
         echo $output;
     }
 
@@ -877,11 +1145,17 @@ final class NF_Styles
 
     public function bust_field_styles_cache( $form_id )
     {
+        delete_transient( $this->field_styles_cache_key( $form_id ) );
         delete_transient( 'ninja_forms_styles_form_' . $form_id . '_field_styles' );
 
         // Fallback for form instance IDs. @NOTE Does not support memcache (or similar), where transients are not stored in the database
         global $wpdb;
         $wpdb->query( "DELETE FROM `$wpdb->options` WHERE `option_name` LIKE ('_transient_ninja_forms_styles_form_" . $form_id . "_%_field_styles')" );        
+    }
+
+    protected function field_styles_cache_key( $form_id )
+    {
+        return 'ninja_forms_styles_form_' . $form_id . '_v' . self::FIELD_STYLES_CACHE_VERSION . '_field_styles';
     }
 
     public function bust_plugin_styles_cache( $style_settings )
@@ -928,6 +1202,18 @@ final class NF_Styles
     public function filter_output_rule_border( $rule )
     {
         return 'border-width';
+    }
+
+    /**
+     * Cache-busting version for one of this component's assets.
+     *
+     * @since 3.0.30
+     * @param string $relative_path Asset path relative to this file's directory.
+     * @return string Version string for wp_enqueue_style/script.
+     */
+    public static function asset_version( $relative_path )
+    {
+        return NF_Layout_Styles_Assets::version( plugin_dir_path( __FILE__ ) . $relative_path, self::VERSION );
     }
 
     /**

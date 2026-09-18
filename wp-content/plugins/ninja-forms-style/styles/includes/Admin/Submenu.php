@@ -31,11 +31,35 @@ final class NF_Styles_Admin_Submenu extends NF_Abstracts_Submenu
     {
         wp_enqueue_style( 'wp-color-picker' );
         wp_enqueue_style( 'nf-codemirror', Ninja_Forms::$url . 'assets/css/codemirror.css' );
-        wp_enqueue_style( 'ninja_forms_styles_admin_css', NF_Styles::$url . 'assets/css/admin.css', array(), false );
+        wp_enqueue_style( 'nf-jBox', Ninja_Forms::$url . 'assets/css/jBox.css', array(), Ninja_Forms::VERSION );
+        wp_enqueue_style( 'ninja_forms_styles_admin_css', NF_Styles::$url . 'assets/css/admin.css', array(), NF_Styles::asset_version( 'assets/css/admin.css' ) );
 
         wp_enqueue_script( 'postbox' );
+        wp_enqueue_script( 'nf-jBox', Ninja_Forms::$url . 'assets/js/min/jBox.min.js', array( 'jquery' ), Ninja_Forms::VERSION );
+        wp_enqueue_script( 'nf-ninjamodal', Ninja_Forms::$url . 'assets/js/lib/ninjaModal.js', array( 'nf-jBox' ), Ninja_Forms::VERSION );
         wp_enqueue_script( 'nf-codemirror', Ninja_Forms::$url . 'assets/js/lib/codemirror.min.js' );
-        wp_enqueue_script( 'ninja_forms_styles_admin_js', NF_Styles::$url . 'assets/js/admin.js', array( 'wp-color-picker', 'postbox', 'nf-codemirror' ), false, true );
+        wp_enqueue_script( 'nf-styles-shared', NF_Styles::$url . 'assets/js/nf-styles-shared.js', array( 'jquery' ), NF_Styles::asset_version( 'assets/js/nf-styles-shared.js' ), true );
+        wp_enqueue_script( 'ninja_forms_styles_admin_js', NF_Styles::$url . 'assets/js/admin.js', array( 'wp-color-picker', 'postbox', 'nf-codemirror', 'nf-ninjamodal', 'nf-styles-shared' ), NF_Styles::asset_version( 'assets/js/admin.js' ), true );
+        wp_add_inline_script( 'ninja_forms_styles_admin_js', 'window.nfStylesThemePalette = ' . wp_json_encode( NF_Styles::get_theme_color_palette() ) . ';', 'before' );
+        wp_localize_script( 'ninja_forms_styles_admin_js', 'nfStylesL10n', array(
+            'thisSection'         => __( 'this section', 'ninja-forms-layout-styles' ),
+            /* translators: %s: style section label. */
+            'resetSectionTitle'   => __( 'Reset %s?', 'ninja-forms-layout-styles' ),
+            /* translators: %s: style section label. */
+            'resetSectionBody'    => __( 'This will clear Design and CSS mode values for %s. This cannot be undone after you save.', 'ninja-forms-layout-styles' ),
+            'resetSectionConfirm' => __( 'Reset Section', 'ninja-forms-layout-styles' ),
+            'clearAllTitle'       => __( 'Clear all styles?', 'ninja-forms-layout-styles' ),
+            'clearAllBody'        => __( 'This will clear all Layout & Styles settings, including Design and CSS mode values. This cannot be undone after you save.', 'ninja-forms-layout-styles' ),
+            'clearAllConfirm'     => __( 'Clear All Styles', 'ninja-forms-layout-styles' ),
+            'cancel'              => __( 'Cancel', 'ninja-forms-layout-styles' ),
+            'defaultLabel'        => __( 'Default', 'ninja-forms-layout-styles' ),
+            'theme'               => __( 'Theme', 'ninja-forms-layout-styles' ),
+            'themeColors'         => __( 'Theme colors', 'ninja-forms-layout-styles' ),
+            'hex'                 => __( 'Hex', 'ninja-forms-layout-styles' ),
+            'openColorPicker'     => __( 'Open color picker', 'ninja-forms-layout-styles' ),
+            /* translators: %s: style control label. */
+            'setValue'            => __( 'Set %s', 'ninja-forms-layout-styles' ),
+        ) );
 
         $tab = ( isset( $_GET[ 'tab' ] ) ) ? WPN_Helper::sanitize_text_field( $_GET[ 'tab' ] ) : 'form_settings';
         $groups = NF_Styles::config( 'PluginSettingGroups' );
@@ -78,7 +102,6 @@ final class NF_Styles_Admin_Submenu extends NF_Abstracts_Submenu
 
         foreach( $sections as $section_id => $section ){
             $settings = NF_Styles::config( 'CommonSettings' );
-            unset( $settings[ 'show_advanced_css' ] );
 
             if( 'listselect_element' == $section_id && Ninja_Forms()->get_setting( 'opinionated_styles' ) ){
                 unset( $settings[ 'float' ] );
@@ -122,6 +145,12 @@ final class NF_Styles_Admin_Submenu extends NF_Abstracts_Submenu
     {
         if( ! current_user_can( apply_filters( 'ninja_forms_styles_can_update_styles', 'manage_options' ) ) ) return;
 
+        // CSRF protection: verify nonce before processing settings update.
+        if ( ! isset( $_POST['nf_styles_settings_security'] )
+            || ! wp_verify_nonce( $_POST['nf_styles_settings_security'], 'nf_styles_settings_nonce' ) ) {
+            return;
+        }
+
         if( ! isset( $_POST[ 'style' ] ) ) return;
 
         $data = WPN_Helper::sanitize_text_field( $_POST[ 'style' ] );
@@ -129,20 +158,38 @@ final class NF_Styles_Admin_Submenu extends NF_Abstracts_Submenu
         $group = WPN_Helper::get_query_string( 'tab', 'form_settings' );
 
         $settings = Ninja_Forms()->get_setting( 'style' );
+        $settings = is_array( $settings ) ? $settings : array();
 
         if( ! isset( $settings[ $group ] ) ) $settings[ $group ] = array();
 
         if( 'field_type' == $group ){
-            $settings[ 'field_type' ] = array_merge( $settings[ 'field_type' ], $data[ $group ] );
+            $settings[ 'field_type' ] = $this->merge_style_settings( $settings[ 'field_type' ], isset( $data[ $group ] ) ? $data[ $group ] : array() );
         } elseif( 'error_settings' == $group || 'datepicker_settings' == $group ) {
             if( ! isset( $settings[ 'form_settings' ] ) ) $settings[ 'form_settings' ] = array();
-            $settings[ 'form_settings' ] = array_merge( $settings[ 'form_settings' ], $data[ $group ] );
+            $settings[ 'form_settings' ] = $this->merge_style_settings( $settings[ 'form_settings' ], isset( $data[ $group ] ) ? $data[ $group ] : array() );
         } else {
-            $settings[$group] = apply_filters('ninja_forms_styles_updates_' . $group, $data[$group]);
+            $submitted = apply_filters( 'ninja_forms_styles_updates_' . $group, isset( $data[ $group ] ) ? $data[ $group ] : array() );
+            $settings[ $group ] = $this->merge_style_settings( $settings[ $group ], $submitted );
         }
 
         Ninja_Forms()->update_setting( 'style', $settings );
         do_action( 'ninja_forms_styles_update_styles', $settings );
+    }
+
+    /**
+     * Merge submitted style settings over the existing saved settings.
+     *
+     * @param array $existing  Existing saved style settings.
+     * @param array $submitted Newly submitted style settings.
+     *
+     * @return array
+     */
+    protected function merge_style_settings( $existing, $submitted )
+    {
+        $existing = is_array( $existing ) ? $existing : array();
+        $submitted = is_array( $submitted ) ? $submitted : array();
+
+        return array_replace_recursive( $existing, $submitted );
     }
 
     public function filter_get_plugin_style( $value, $tab, $section, $name )
@@ -206,6 +253,16 @@ final class NF_Styles_Admin_Submenu extends NF_Abstracts_Submenu
 
     public function developer_nuke_styles()
     {
+        if ( ! current_user_can( 'manage_options' ) ) {
+            return;
+        }
+
+        // CSRF protection: verify nonce before clearing all styles.
+        if ( ! isset( $_POST['nf_styles_settings_security'] )
+            || ! wp_verify_nonce( $_POST['nf_styles_settings_security'], 'nf_styles_settings_nonce' ) ) {
+            return;
+        }
+
         Ninja_Forms()->update_setting( 'style', array() );
     }
 

@@ -17,7 +17,11 @@ define( [], function() {
 			// Get our date
 			let date = jQuery( e.target ).parent().parent().find( "[data-type='date']" ).val();
 			if ( 'undefined' == typeof date ) {
-				date = '1970-01-02';
+				// Time Only mode has no date input (see tmpl-nf-cl-value-date-time_only),
+				// so this always hits the fallback. Must match the '1970/01/01' sentinel
+				// used by both the front-end (whenModel.js) and PHP (ConditionModel::compare())
+				// runtime comparisons, or Time Only conditions never match regardless of hour/minute.
+				date = '1970-01-01';
 			}
 			dateString += date + 'T';
 

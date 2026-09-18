@@ -42,6 +42,7 @@ final class NF_Styles_Admin_Views_PluginSettings
         extract( $data );
 
         $tab = $this->data[ 'tab' ];
+        $value = isset( $value ) ? $value : '';
 
         if( 'error_settings' == $tab ) $tab = 'form_settings';
         if( 'datepicker_settings' == $tab ) $tab = 'form_settings';

@@ -2,9 +2,9 @@
 Contributors: kstover, jameslaws, kbjohnson90, Much2tall, New0, stuart-sequeira
 Donate link: https://ninjaforms.com
 Tags: form, forms, CSS
-Requires at least: 6.7
-Tested up to: 6.9
-Stable tag: 3.0.32
+Requires at least: 6.8
+Tested up to: 7.0
+Stable tag: 3.1.1
 
 License: GPLv2 or later
 
@@ -24,6 +24,26 @@ For help and video tutorials, please visit our website: [NinjaForms.com](http://
 
 == Changelog ==
 
+= 3.1.1 (07 September 2026) =
+
+*Bug Fixes:*
+
+- Element Styles on Radio List and Checkbox List fields now preserve option indicators
+
+= 3.1.0 (10 August 2026) =
+
+*Bug Fixes:*
+
+- multi-part Previous/Next button styling now applies correctly
+- repeater validation scoped to current part in multi-part forms
+
+*Enhancements:*
+
+- visual styles editor with theme palette and per-side spacing controls
+
+*Security Enhancements:*
+
+- harden settings save and reset request handlers
 
 = 3.0.33 (8 April 2025) =
 

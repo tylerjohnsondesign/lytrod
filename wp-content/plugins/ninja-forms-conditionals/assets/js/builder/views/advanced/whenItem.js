@@ -9,6 +9,12 @@ define( [], function( ) {
 	var view = Marionette.ItemView.extend({
 		template: "#tmpl-nf-cl-advanced-when-item",
 
+		attributes: function() {
+			return {
+				'data-qa-id': this.model.get( 'qaId' )
+			};
+		},
+
 		initialize: function() {
 			this.listenTo( this.model, 'change', this.render );
 		},
