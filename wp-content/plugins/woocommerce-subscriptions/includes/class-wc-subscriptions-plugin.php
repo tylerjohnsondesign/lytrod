@@ -8,7 +8,10 @@
 
 defined( 'ABSPATH' ) || exit;
 
+use Automattic\WooCommerce_Subscriptions\Internal\Products\BulkActions;
 use Automattic\WooCommerce_Subscriptions\Internal\Telemetry\Events as WC_Tracks_Events;
+use Automattic\WooCommerce_Subscriptions\Internal\Queue_Management\Manager as Queue_Management;
+use Automattic\WooCommerce_Subscriptions\Settings;
 
 /**
  * @method static WC_Subscriptions_Plugin instance()
@@ -25,6 +28,10 @@ class WC_Subscriptions_Plugin extends WC_Subscriptions_Core_Plugin {
 		WC_Subscriptions_Switcher::init();
 		$this->add_cart_handler( new WCS_Cart_Switch() );
 		WCS_Manual_Renewal_Manager::init();
+
+		( new \Automattic\WooCommerce_Subscriptions\Internal\HealthCheck\Bootstrap() )->register();
+		( new Queue_Management() )->setup();
+		\Automattic\WooCommerce_Subscriptions\Internal\Abilities\Abilities_Registrar::init();
 		WCS_Customer_Suspension_Manager::init();
 		WCS_Drip_Downloads_Manager::init();
 		WCS_Zero_Initial_Payment_Checkout_Manager::init();
@@ -34,6 +41,17 @@ class WC_Subscriptions_Plugin extends WC_Subscriptions_Core_Plugin {
 		WCS_Call_To_Action_Button_Text_Manager::init();
 		WCS_Subscriber_Role_Manager::init();
 		WCS_Upgrade_Notice_Manager::init();
+		WCS_Admin_Assets::init();
+		BulkActions::init();
+
+		/*
+		 * Skip the classic renderer when a plugin update or rollback replaced the files on disk after
+		 * this request registered its class map - see WC_Subscriptions_Admin::are_settings_classes_loadable()
+		 * for the window. The settings surface degrades for this request instead of fataling the plugin load.
+		 */
+		if ( WC_Subscriptions_Admin::are_settings_classes_loadable() ) {
+			\Automattic\WooCommerce_Subscriptions\Internal\Admin\Settings\Classic_Renderer::init();
+		}
 
 		$tracks_events = new WC_Tracks_Events();
 		$tracks_events->setup();
@@ -43,6 +61,7 @@ class WC_Subscriptions_Plugin extends WC_Subscriptions_Core_Plugin {
 		}
 
 		add_action( 'admin_enqueue_scripts', array( $this, 'maybe_show_welcome_message' ) );
+		add_action( 'plugins_loaded', array( $this, 'init_apfs' ) );
 		add_action( 'plugins_loaded', array( $this, 'init_gifting' ) );
 		add_action( 'plugins_loaded', array( $this, 'init_downloads' ) );
 		add_action( 'admin_notices', array( WC_Subscription_Downloads_Settings::class, 'add_notice_about_bundled_feature' ) );
@@ -166,37 +185,29 @@ class WC_Subscriptions_Plugin extends WC_Subscriptions_Core_Plugin {
 		return 'WC_Subscriptions_Payment_Gateways';
 	}
 
+	/**
+	 * Gets the canonical Subscriptions settings accessor.
+	 *
+	 * @return Settings
+	 */
+	public function settings() {
+		return Settings::instance();
+	}
+
 
 	/**
 	 * Adds welcome message after activating the plugin
+	 *
+	 * Does nothing since 9.1.0. The notice's "Add a Subscription Product" button led to the legacy
+	 * product-type walkthrough, which has been inert since 9.0.0 made the "Simple subscription" and
+	 * "Variable subscription" product types opt-in and off by default. The notice only rendered on a
+	 * store with no legacy subscription products, which is exactly the case where neither type is
+	 * available. admin_installed_notice() is left in place for a replacement onboarding flow.
+	 *
+	 * @see https://linear.app/a8c/issue/WOOSUBS-1849
 	 */
 	public function maybe_show_welcome_message() {
-		$plugin_has_just_been_activated = (bool) get_transient( WC_Subscriptions_Core_Plugin::instance()->get_activation_transient() );
-
-		// Maybe add the admin notice.
-		if ( $plugin_has_just_been_activated ) {
-
-			$woocommerce_plugin_dir_file = WC_Subscriptions_Admin::get_woocommerce_plugin_dir_file();
-
-			// check if subscription products exist in the store.
-			$subscription_product = wc_get_products(
-				array(
-					'type'   => array( 'subscription', 'variable-subscription' ),
-					'limit'  => 1,
-					'return' => 'ids',
-				)
-			);
-
-			if ( ! empty( $woocommerce_plugin_dir_file ) && 0 === count( $subscription_product ) ) {
-
-				wp_enqueue_style( 'woocommerce-activation', plugins_url( '/assets/css/activation.css', $woocommerce_plugin_dir_file ), [], WC_Subscriptions_Core_Plugin::instance()->get_plugin_version() );
-
-				if ( ! isset( $_GET['page'] ) || 'wcs-about' !== $_GET['page'] ) {
-					add_action( 'admin_notices', array( $this, 'admin_installed_notice' ) );
-				}
-			}
-			delete_transient( WC_Subscriptions_Core_Plugin::instance()->get_activation_transient() );
-		}
+		// No-op. The welcome notice is retired, see the docblock above.
 	}
 
 	/**
@@ -239,6 +250,52 @@ class WC_Subscriptions_Plugin extends WC_Subscriptions_Core_Plugin {
 			</div>
 		</div>
 		<?php
+	}
+
+	/**
+	 * Attempts to initialize APFS (All Products for Subscriptions) functionality.
+	 *
+	 * By the time `plugins_loaded` fires, WordPress has already included every active plugin file.
+	 * If the standalone APFS plugin is active, its top-level `function WCS_ATT()` declaration will
+	 * have executed during file inclusion - so `function_exists( 'WCS_ATT' )` is a reliable check.
+	 *
+	 * The `is_plugin_being_activated` fallback covers the single request where a merchant activates
+	 * the standalone plugin: WordPress calls `activate_plugin()` after `plugins_loaded`, so the
+	 * standalone file has not been included yet and `function_exists` would be false. Without this
+	 * check the standalone's unconditional `function WCS_ATT()` declaration would redeclare-fatal.
+	 */
+	public function init_apfs() {
+		if (
+			$this->is_plugin_being_activated( 'woocommerce-all-products-for-subscriptions' )
+			|| function_exists( 'WCS_ATT' )
+		) {
+			// Standalone APFS is active or being activated. Still show the
+			// Subscription Plans welcome announcement so the merchant sees the
+			// migration prompt even without the bundled code path.
+			add_action(
+				'admin_init',
+				function () {
+					if ( ! class_exists( 'WCS_ATT_Admin_Welcome_Announcement' ) ) {
+						return;
+					}
+
+					if ( WCS_ATT_Admin_Welcome_Announcement::is_welcome_announcement_dismissed() ) {
+						return;
+					}
+
+					WCS_ATT_Admin_Welcome_Announcement::init();
+				},
+				5
+			);
+			return;
+		}
+
+		// Declare the legacy global function used by internal APFS code and
+		// third-party integrations.  PHPStan does not support inner named
+		// functions (phpstan/phpstan#165), so we load a dedicated file.
+		require_once $this->get_plugin_directory( 'includes/apfs/wcs-att-global-function.php' );
+
+		$GLOBALS['woocommerce_subscribe_all_the_things'] = WCS_ATT();
 	}
 
 	/**
@@ -300,10 +357,16 @@ class WC_Subscriptions_Plugin extends WC_Subscriptions_Core_Plugin {
 	 */
 	public function init_downloads() {
 		if (
-			! defined( 'WCS_ALLOW_SUBSCRIPTION_DOWNLOADS' )
-			|| $this->is_plugin_being_activated( 'woocommerce-subscription-downloads' )
+			$this->is_plugin_being_activated( 'woocommerce-subscription-downloads' )
 			|| class_exists( WC_Subscription_Downloads::class, false )
 		) {
+			if ( class_exists( WC_Subscription_Downloads::class, false ) ) {
+				// Will show the welcome announcement if the standalone plugin is active and the welcome announcement has not been dismissed.
+				if ( ! WC_Subscription_Downloads_Admin_Welcome_Announcement::is_welcome_announcement_dismissed() ) {
+					WC_Subscription_Downloads_Admin_Welcome_Announcement::init();
+				}
+			}
+
 			return;
 		}
 

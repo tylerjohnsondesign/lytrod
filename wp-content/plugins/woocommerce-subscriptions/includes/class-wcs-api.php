@@ -63,10 +63,12 @@ class WCS_API {
 			'WC_REST_Subscriptions_Controller',
 			'WC_REST_Subscription_notes_Controller',
 			'WC_REST_Subscriptions_Settings_Option_Controller',
+			// APFS
+			'WCS_ATT_REST_Plans_Controller',
+			'WCS_ATT_REST_Product_Plans_Controller',
 		);
 
 		foreach ( $endpoint_classes as $class ) {
-			// @phpstan-ignore class.nameCase
 			$controller = new $class();
 			$controller->register_routes();
 		}
@@ -83,7 +85,13 @@ class WCS_API {
 		}
 
 		WC_REST_Subscription_System_Status_Manager::init();
-		new WC_REST_Subscriptions_Settings();
+
+		/*
+		 * The subscriptions settings group is no longer registered here: registering the settings tab as a
+		 * WC_Settings_Page opts it into WooCommerce's own REST settings registrar, and the surface is
+		 * reconciled by Settings_Page::filter_rest_registered_settings(). WC_REST_Subscriptions_Settings
+		 * is deprecated.
+		 */
 	}
 
 	/**
@@ -114,6 +122,17 @@ class WCS_API {
 		$sign_up_fee = is_numeric( $sign_up_fee ) ? (float) $sign_up_fee : 0;
 
 		if ( 0 < $sign_up_fee ) {
+			// Don't re-apply the sign-up fee to renewal, resubscribe or switch orders. Those orders are created with
+			// their own correct totals (the recurring price, or a prorated switch amount) and the sign-up fee only
+			// belongs on the initial sign-up order. Rewriting such a line item here would overwrite the stored total
+			// with the recurring price plus the sign-up fee. During initial order creation the item has no order ID
+			// yet, so genuine new sign-up orders built via REST are unaffected. See WOOSUBS-1686.
+			$order_id = $item->get_order_id();
+
+			if ( $order_id && ( wcs_order_contains_renewal( $order_id ) || wcs_order_contains_resubscribe( $order_id ) || wcs_order_contains_switch( $order_id ) ) ) {
+				return;
+			}
+
 			// Recalculate the totals as in `prepare_line_items`, but including the sign up fee in the price.
 			$trial_length = WC_Subscriptions_Product::get_trial_length( $product );
 

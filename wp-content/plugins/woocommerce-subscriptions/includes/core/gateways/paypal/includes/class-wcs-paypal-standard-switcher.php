@@ -60,7 +60,7 @@ class WCS_PayPal_Standard_Switcher {
 
 			$is_billing_agreement = wcs_is_paypal_profile_a( wcs_get_paypal_id( $subscription->get_id() ), 'billing_agreement' );
 
-			if ( 'line_item' == $item['type'] && wcs_is_product_switchable_type( $item['product_id'] ) ) {
+			if ( $item instanceof WC_Order_Item_Product && 'line_item' === $item->get_type() && wcs_is_product_switchable_type( $item->get_product_id() ) ) {
 				$is_product_switchable = true;
 			} else {
 				$is_product_switchable = false;
@@ -174,7 +174,8 @@ class WCS_PayPal_Standard_Switcher {
 					$order->update_meta_data( '_old_paypal_subscription_id', $paypal_id );
 					$order->save();
 
-					update_post_meta( $subscription->get_id(), '_switched_paypal_subscription_id', $paypal_id );
+					$subscription->update_meta_data( '_switched_paypal_subscription_id', $paypal_id );
+					$subscription->save();
 				}
 			}
 		}

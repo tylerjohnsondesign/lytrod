@@ -57,6 +57,23 @@ class WCS_Cart_Resubscribe extends WCS_Cart_Renewal {
 		add_action( 'woocommerce_order_status_changed', array( &$this, 'maybe_cancel_existing_subscription' ), 10, 3 );
 
 		add_filter( 'wc_dynamic_pricing_apply_cart_item_adjustment', array( &$this, 'prevent_compounding_dynamic_discounts' ), 10, 2 );
+
+		// Resubscribes never grant a free trial, so the _has_trial flag from the old subscription's line items must not carry over.
+		add_filter( 'woocommerce_order_again_cart_item_data', array( &$this, 'remove_has_trial_from_cart_item_meta' ), 10, 1 );
+	}
+
+	/**
+	 * Returns the nonce action protecting resubscribe requests for a subscription.
+	 *
+	 * The action names the operation as well as the subscription, so a token minted for an unrelated operation on
+	 * the same subscription, such as removing one of its line items, cannot be replayed as a resubscribe request.
+	 *
+	 * @param int $subscription_id The ID of the subscription being resubscribed to.
+	 * @return string
+	 * @since 9.2.0
+	 */
+	public static function get_nonce_action( int $subscription_id ): string {
+		return 'woocommerce_subscriptions_resubscribe_' . absint( $subscription_id );
 	}
 
 	/**
@@ -73,10 +90,13 @@ class WCS_Cart_Resubscribe extends WCS_Cart_Renewal {
 			$subscription = wcs_get_subscription( wc_clean( wp_unslash( $_GET['resubscribe'] ) ) );
 			$redirect_to  = get_permalink( wc_get_page_id( 'myaccount' ) );
 
-			if ( wp_verify_nonce( wc_clean( wp_unslash( $_GET['_wpnonce'] ) ), $subscription->get_id() ) === false ) {
-				wc_add_notice( __( 'There was an error with your request to resubscribe. Please try again.', 'woocommerce-subscriptions' ), 'error' );
-			} elseif ( empty( $subscription ) ) {
+			// wcs_get_subscription() returns false for an unknown id, so existence is checked before the branches
+			// below dereference the subscription.
+			if ( empty( $subscription ) ) {
 				wc_add_notice( __( 'That subscription does not exist. Has it been deleted?', 'woocommerce-subscriptions' ), 'error' );
+
+			} elseif ( wp_verify_nonce( wc_clean( wp_unslash( $_GET['_wpnonce'] ) ), self::get_nonce_action( $subscription->get_id() ) ) === false ) {
+				wc_add_notice( __( 'There was an error with your request to resubscribe. Please try again.', 'woocommerce-subscriptions' ), 'error' );
 
 			} elseif ( ! current_user_can( 'subscribe_again', $subscription->get_id() ) ) {
 
@@ -103,11 +123,13 @@ class WCS_Cart_Resubscribe extends WCS_Cart_Renewal {
 
 		} elseif ( isset( $_GET['pay_for_order'] ) && isset( $_GET['key'] ) && isset( $wp->query_vars['order-pay'] ) ) {
 
-			$order_id     = ( isset( $wp->query_vars['order-pay'] ) ) ? $wp->query_vars['order-pay'] : absint( $_GET['order_id'] );
-			$order        = wc_get_order( $wp->query_vars['order-pay'] );
-			$order_key    = wc_clean( wp_unslash( $_GET['key'] ) );
+			$order_id  = ( isset( $wp->query_vars['order-pay'] ) ) ? $wp->query_vars['order-pay'] : absint( $_GET['order_id'] );
+			$order     = wc_get_order( $wp->query_vars['order-pay'] );
+			// sanitize_text_field() returns '' for array input, which hash_equals() would otherwise reject.
+			$order_key = sanitize_text_field( wp_unslash( $_GET['key'] ) );
 
-			if ( wcs_get_objects_property( $order, 'order_key' ) == $order_key && $order->has_status( array( 'pending', 'failed' ) ) && wcs_order_contains_resubscribe( $order ) ) {
+			// Check the order exists before dereferencing it: wc_get_order() returns false for an unknown ID.
+			if ( $order instanceof WC_Order && hash_equals( $order->get_order_key(), $order_key ) && $order->has_status( array( 'pending', 'failed' ) ) && wcs_order_contains_resubscribe( $order ) ) {
 
 				if ( ! is_user_logged_in() ) {
 
@@ -354,5 +376,25 @@ class WCS_Cart_Resubscribe extends WCS_Cart_Renewal {
 	 */
 	public function validate_current_user( $subscription ) {
 		return current_user_can( 'subscribe_again', $subscription->get_id() );
+	}
+
+	/**
+	 * Remove the _has_trial flag copied from the old subscription's line item meta when setting up a resubscribe cart.
+	 *
+	 * Resubscribes never grant a free trial (@see wcs_create_resubscribe_order()), but the resubscribe cart copies all
+	 * custom line item meta from the old subscription's items. If the original subscription was purchased with a free
+	 * trial, its items carry _has_trial, and copying that onto the new subscription's items makes downstream code
+	 * (@see WC_Subscription::get_items_sign_up_fee(), @see WC_Subscriptions_Switcher::calculate_total_paid_since_last_order())
+	 * treat the full resubscribe payment as a sign-up fee.
+	 *
+	 * @param array $item_data The cart item data being added to the resubscribe cart item, keyed by cart item key.
+	 * @return array The cart item data without the _has_trial line item meta.
+	 */
+	public function remove_has_trial_from_cart_item_meta( $item_data ) {
+		if ( isset( $item_data[ $this->cart_item_key ]['custom_line_item_meta']['_has_trial'] ) ) {
+			unset( $item_data[ $this->cart_item_key ]['custom_line_item_meta']['_has_trial'] );
+		}
+
+		return $item_data;
 	}
 }

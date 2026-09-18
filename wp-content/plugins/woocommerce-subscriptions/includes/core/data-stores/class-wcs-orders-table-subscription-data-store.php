@@ -56,7 +56,11 @@ class WCS_Orders_Table_Subscription_Data_Store extends \Automattic\WooCommerce\I
 	/**
 	 * Table column to WC_Subscription mapping for wc_orders table.
 	 *
-	 * All columns are inherited from orders except the `transaction_id` column isn't used for subscriptions.
+	 * All columns are inherited from orders. The `transaction_id` column isn't used for subscriptions
+	 * but is included in the mapping to ensure cached data objects have all the properties the parent
+	 * order data store expects, preventing PHP warnings when HPOS Data Caching is enabled.
+	 *
+	 * @see https://github.com/woocommerce/woocommerce/issues/63272
 	 *
 	 * @var string[]
 	 */
@@ -113,6 +117,10 @@ class WCS_Orders_Table_Subscription_Data_Store extends \Automattic\WooCommerce\I
 			'type' => 'string',
 			'name' => 'payment_method_title',
 		),
+		'transaction_id'       => array(
+			'type' => 'string',
+			'name' => 'transaction_id',
+		),
 		'ip_address'           => array(
 			'type' => 'string',
 			'name' => 'customer_ip_address',
@@ -130,14 +138,13 @@ class WCS_Orders_Table_Subscription_Data_Store extends \Automattic\WooCommerce\I
 	/**
 	 * Table column to WC_Subscription mapping for wc_operational_data table.
 	 *
-	 * For subscriptions, all columns are inherited from orders except for the following columns:
+	 * All columns are inherited from orders. Some columns (cart_hash, new_order_email_sent,
+	 * order_stock_reduced, date_paid_gmt, recorded_sales, date_completed_gmt) aren't used for
+	 * subscriptions but are included in the mapping to ensure cached data objects have all the
+	 * properties the parent order data store expects, preventing PHP warnings when HPOS Data
+	 * Caching is enabled.
 	 *
-	 * - cart_hash
-	 * - new_order_email_sent
-	 * - order_stock_reduced
-	 * - date_paid_gmt
-	 * - recorded_sales
-	 * - date_completed_gmt
+	 * @see https://github.com/woocommerce/woocommerce/issues/63272
 	 *
 	 * @var string[]
 	 */
@@ -164,9 +171,29 @@ class WCS_Orders_Table_Subscription_Data_Store extends \Automattic\WooCommerce\I
 			'type' => 'bool',
 			'name' => 'download_permissions_granted',
 		),
+		'cart_hash'                   => array(
+			'type' => 'string',
+			'name' => 'cart_hash',
+		),
+		'new_order_email_sent'        => array(
+			'type' => 'bool',
+			'name' => 'new_order_email_sent',
+		),
 		'order_key'                   => array(
 			'type' => 'string',
 			'name' => 'order_key',
+		),
+		'order_stock_reduced'         => array(
+			'type' => 'bool',
+			'name' => 'order_stock_reduced',
+		),
+		'date_paid_gmt'               => array(
+			'type' => 'date',
+			'name' => 'date_paid',
+		),
+		'date_completed_gmt'          => array(
+			'type' => 'date',
+			'name' => 'date_completed',
 		),
 		'shipping_tax_amount'         => array(
 			'type' => 'decimal',
@@ -183,6 +210,10 @@ class WCS_Orders_Table_Subscription_Data_Store extends \Automattic\WooCommerce\I
 		'discount_total_amount'       => array(
 			'type' => 'decimal',
 			'name' => 'discount_total',
+		),
+		'recorded_sales'              => array(
+			'type' => 'bool',
+			'name' => 'recorded_sales',
 		),
 	);
 
@@ -580,7 +611,7 @@ class WCS_Orders_Table_Subscription_Data_Store extends \Automattic\WooCommerce\I
 		parent::persist_order_to_db( $subscription, $force_all_fields );
 
 		// Get the subscription's current raw metadata.
-		$subscription_meta_data = array_column( $this->data_store_meta->read_meta( $subscription ), null, 'meta_key' );
+		$subscription_meta_data = $this->read_meta_by_key( $subscription );
 
 		// Determine what fields need to be saved. Forcing all fields to be saved is only allowed when updating.
 		if ( $force_all_fields && $is_update ) {
@@ -623,6 +654,48 @@ class WCS_Orders_Table_Subscription_Data_Store extends \Automattic\WooCommerce\I
 				$this->data_store_meta->update_meta( $subscription, (object) $new_meta_data );
 			}
 		}
+	}
+
+	/**
+	 * Determines which of a subscription's props need to be written.
+	 *
+	 * The inherited version decides whether a prop already has a stored value by looking for its row in
+	 * wp_postmeta. Subscription meta lives in the orders meta table, so on a store whose orders have never had
+	 * post meta that lookup reports every row as missing and marks every prop for writing, changed or not.
+	 * Saving an instance whose dates another instance has since advanced then writes the old dates back over
+	 * them. Reading the orders meta table instead keeps the inherited meaning - write a prop when it changed, or
+	 * when it has no stored value - and gives the same answer however the store keeps its orders.
+	 *
+	 * @param WC_Data $object            The subscription being saved.
+	 * @param array   $meta_key_to_props Meta key => prop name map to filter.
+	 * @param string  $meta_type         Unused. Subscription meta is read from the orders meta table.
+	 *
+	 * @return array The subset of $meta_key_to_props which needs to be written.
+	 */
+	// phpcs:ignore Universal.NamingConventions.NoReservedKeywordParameterNames.objectFound -- The parameter names match the inherited signature.
+	protected function get_props_to_update( $object, $meta_key_to_props, $meta_type = 'post' ) {
+		$existing_meta   = $this->read_meta_by_key( $object );
+		$changes         = $object->get_changes();
+		$props_to_update = [];
+
+		foreach ( $meta_key_to_props as $meta_key => $prop ) {
+			if ( array_key_exists( $prop, $changes ) || ! isset( $existing_meta[ $meta_key ] ) ) {
+				$props_to_update[ $meta_key ] = $prop;
+			}
+		}
+
+		return $props_to_update;
+	}
+
+	/**
+	 * Reads a subscription's raw meta rows from the orders meta table, keyed by meta key.
+	 *
+	 * @param WC_Data $subscription The subscription to read.
+	 *
+	 * @return array
+	 */
+	private function read_meta_by_key( $subscription ): array {
+		return array_column( $this->data_store_meta->read_meta( $subscription ), null, 'meta_key' );
 	}
 
 	/**
@@ -727,7 +800,8 @@ class WCS_Orders_Table_Subscription_Data_Store extends \Automattic\WooCommerce\I
 			$dates_to_save[] = 'date_modified';
 		}
 
-		// Backfill the saved dates if syncing is enabled.
+		// Backfill the saved dates if syncing is enabled. Only the dates written above are backfilled, which is
+		// enough: WooCommerce rebuilds the whole post record from the order on every save while syncing is on.
 		$data_synchronizer = wc_get_container()->get( Automattic\WooCommerce\Internal\DataStores\Orders\DataSynchronizer::class );
 		if ( $data_synchronizer && $data_synchronizer->data_sync_is_enabled() ) {
 			$this->get_post_data_store_for_backfill()->write_dates_to_database( $subscription, $dates_to_save );
@@ -779,7 +853,7 @@ class WCS_Orders_Table_Subscription_Data_Store extends \Automattic\WooCommerce\I
 			);
 		}
 
-		$subscription_meta_data = array_column( $this->data_store_meta->read_meta( $subscription ), null, 'meta_key' );
+		$subscription_meta_data = $this->read_meta_by_key( $subscription );
 
 		// Write the remaining dates to meta.
 		foreach ( $dates_to_save as $date_prop => $index ) {
@@ -898,6 +972,27 @@ class WCS_Orders_Table_Subscription_Data_Store extends \Automattic\WooCommerce\I
 		$results = $wpdb->get_results( "SELECT status, COUNT(*) AS cnt FROM {$table} WHERE type = 'shop_subscription' GROUP BY status", ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 
 		return $results ? array_combine( array_column( $results, 'status' ), array_map( 'absint', array_column( $results, 'cnt' ) ) ) : array();
+	}
+
+	/**
+	 * Get a subscription's raw stored status directly from the orders table.
+	 *
+	 * Unlike WC_Subscription::get_status(), this bypasses the in-memory conversion of the
+	 * 'draft' and 'auto-draft' statuses to 'pending' that WC_Subscription::set_status() applies
+	 * when a subscription object is read.
+	 *
+	 * @since 9.0.0
+	 *
+	 * @param int $subscription_id The subscription ID.
+	 * @return string The raw stored status (e.g. 'auto-draft', 'draft', 'wc-active'), or an empty string if it could not be determined.
+	 */
+	public function get_subscription_raw_status( $subscription_id ) {
+		global $wpdb;
+
+		$table  = self::get_orders_table_name();
+		$status = $wpdb->get_var( $wpdb->prepare( "SELECT status FROM {$table} WHERE id = %d", $subscription_id ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+
+		return is_string( $status ) ? $status : '';
 	}
 
 	/**

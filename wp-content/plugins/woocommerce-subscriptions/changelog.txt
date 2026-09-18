@@ -1,5 +1,211 @@
 *** WooCommerce Subscriptions Changelog ***
 
+2026-09-08 - version 9.2.0
+* Update: We've redesigned the WooCommerce Subscriptions settings page — a single-column layout with clearer labels and inline help:
+    * Early renewal payments are now on by default on stores that never saved the "Allow early renewal payments" setting. Turn it off under WooCommerce > Settings > Subscriptions.
+    * "Turn off automatic payments" now requires "Accept Manual Renewals" to be enabled.
+    * "Suspensions per Billing Period" is now a number field instead of a dropdown.
+    * "Switch Button Text" now defaults to "Switch" for new stores.
+    * Gifting is now set per product instead of storewide. A background migration carries the storewide default onto existing products, so they keep their current behavior; new products are off by default.
+    * A new bulk edit action on the Products screen enables or disables gifting across multiple products at once.
+* Update: When a subscription's scheduled event - a renewal payment, payment retry, trial end, expiration, end of prepaid term or customer notification - is cleared and not replaced, the failed-scheduled-actions log now records which subscription and event were affected and when the event should have run. Previously nothing in the WooCommerce logs identified the subscription, so a subscription left with a date and no scheduled action could only be found by hand.
+* Fix: A product name containing HTML is now shown as plain text on the Subscriptions by Product report, instead of being rendered into the page.
+* Fix: A finished Subscriptions health check scan now reports how many subscriptions it went through, matching the subscriptions list, instead of the smaller number of subscriptions the checks shortlisted.
+* Fix: Visiting a change payment method link without its 'key' query argument no longer emits an "Undefined array key" PHP warning.
+* Fix: An order-pay URL carrying an empty order key no longer triggers a fatal error when the order it names does not exist.
+* Fix: On stores that display prices including tax, recurring totals in the block cart and checkout now note the tax included in the total, matching the "Total due today" row.
+* Fix: The recipient of a gifted subscription is no longer shown the remove item control on My Account > Subscriptions. The control was never usable by them — removing a line item has always required the subscription's owner.
+* Fix: A single product that fails to migrate no longer stops the All Products for Subscriptions product data migration for the whole catalog. Products it cannot migrate are logged and may be left at the default "Sell one-time only" mode; the completion notice reports how many failed with a link to the log so they can be checked and set up by hand.
+* Fix: On stores using high-performance order storage, the Orders screen now warns before trashing a parent order that will also trash its linked subscriptions.
+* Fix: Restored automatic completion of zero-total subscription switch orders placed through the block checkout on WooCommerce 10.9 and newer.
+* Fix: Scheduled downloadable products linked to a subscription product now grant download permissions to existing subscribers when published at their scheduled time, instead of only when published manually from the admin.
+* Fix: Saving a subscription product with no linked downloadable products no longer logs a PHP warning.
+* Fix: Scheduled renewal payments no longer fail with a fatal error when another plugin checks an order's status while the renewal order is created in the background, which left subscriptions on hold and customers uncharged.
+* Fix: The subscription plans script now loads only on pages that can show subscription options, instead of on every page of the store.
+* Fix: Selecting a subscription plan inside a theme's quick view modal updates the price and the add-to-cart button again, as it did before 9.0.0.
+* Fix: Paying for a pending or failed switch order from My Account or an emailed invoice link now completes the switch, instead of creating a second subscription alongside the one being switched.
+* Fix: On stores with prices entered inclusive of tax, paying for a renewal through checkout now charges the correct total for subscriptions with a manual discount, instead of applying the discount inflated by the tax rate and under-charging the renewal.
+* Fix: Subscriptions created from the admin screen now record whether the store enters prices inclusive of tax, so their orders are charged and discounted at the right total instead of treating tax-inclusive prices as tax-exclusive.
+* Fix: Line items bought under a plan set to "Do not stop until cancelled" before All Products for Subscriptions was merged into Subscriptions in 9.0.0 are matched to that plan again. They had stopped being recognized as subscriptions, so recurring and sign-up fee coupons were rejected as not applicable to the product, plan pricing was not applied, and a customer could switch to the plan they were already on instead of being told they cannot switch to the same subscription. On affected stores, switch quotes for these subscriptions now use the purchased plan's billing schedule and free trial. A switch taken during a free trial is treated as leaving the trial: the new plan is charged and the trial ends, where previously nothing was due and the trial continued.
+* Fix: PayPal payment notifications and API payloads are now reduced to the fields needed to diagnose a payment before being written to the diagnostic logs, so those entries no longer record the keys that authorize changing a subscription's payment method. The store's PayPal debug setting is also no longer overridden for ordinary orders.
+* Fix: PayPal Standard subscription sign ups and payments are now checked as having been made to the store's PayPal account and in the subscription's currency, and payments also for the amount PayPal was asked to bill. A payment that does not match is not recorded and the reason is noted on the subscription. An active subscription is put on hold, its PayPal profile is suspended, and the customer is sent a renewal invoice whose payment moves the subscription to a new PayPal profile for the right amount.
+* Fix: On stores that leave the optional PayPal "Receiver email" setting blank, a PayPal Reference Transactions payment notification for an order not yet marked paid is no longer put on hold as coming from a different email address.
+* Fix: On stores using high-performance order storage, resubscribe orders no longer retain the PayPal payment details (payer name and address, subscriber and transaction IDs) recorded on the original subscription by older versions of the plugin.
+* Fix: On stores using high-performance order storage without compatibility mode, a PayPal Standard payment notification resent by PayPal is again recognized as already processed. Re-processing a resend could leave a just-renewed subscription on hold with its next payment date in the past. The same fix restores cancelling the previous PayPal profile after a payment method change, and recording renewal payments on stores with a PayPal identity token set.
+* Tweak: Add to Subscription now shows the same "cannot be edited" notice whether a subscription does not exist or belongs to another customer, instead of naming permission as the reason.
+* Dev: Developer-facing changes:
+    * Deprecated 'woocommerce_subscriptions_max_customer_suspension_range'. The redesigned suspension controls have no option list; the new settings support any number of suspensions.
+    * Deprecated WCSG_Admin::get_gifting_option_text() and WCSG_Admin::get_gifting_global_override_text(). Both described the removed storewide gifting default and nothing in the plugin renders their output anymore.
+    * Deprecated WC_Subscriptions_Admin::add_subscription_settings_tab(). The Subscriptions tab is now registered as a WC_Settings_Page on 'woocommerce_get_settings_pages' rather than through 'woocommerce_settings_tabs_array'. The method now logs a deprecation notice when called, but still adds the tab, so third-party code that hooks it to 'woocommerce_settings_tabs_array' keeps working.
+    * Deprecated WC_REST_Subscriptions_Settings. It and all Subscriptions settings in the /wc/v3/settings REST API are now registered by the new Settings_Page class.
+    * In the /wc/v3/settings/subscriptions REST group, woocommerce_subscriptions_max_customer_suspensions is now registered as a 'number' field without an options list, instead of a 'select' field listing 0-12 and 'unlimited'. The values the field reads and accepts are unchanged: a non-negative integer, or 'unlimited'.
+    * WCS_ATT_Product::get_instance_id() no longer re-runs APFS module initialization or the 'wcsatt_modules' and 'wcsatt_management_modules' filters.
+    * wcs_can_items_be_removed() now requires the 'edit_shop_subscription_line_items' capability, which only a subscription's owner holds, and returns false when there is no current user. It takes an optional $user_id, defaulting to the current user. The 'wcs_can_items_be_removed' filter still runs, and now receives that user as a third argument, but it is applied before the capability check and so can no longer be used on its own to show the remove item control.
+    * Line item removal links and resubscribe links now use separate, operation-specific nonce actions instead of both using the subscription ID, so a link issued for one operation no longer satisfies the other. Links generated before this release stop verifying. A resubscribe link can simply be opened again from My Account > Subscriptions, but an "Undo?" link offered after a line item removal cannot be re-issued, so an item removed shortly before updating stays removed unless the store restores it.
+    * The subscription plans script ('wcsatt-frontend', apfs-frontend.js) is now registered and enqueued in separate steps. Call WCS_ATT_Display::enqueue_frontend_script() to load it on a page.
+    * Added the 'woocommerce_subscriptions_paypal_standard_expected_payment_amounts' filter, to adjust the amounts a PayPal Standard subscription payment is accepted as being for before it is recorded.
+    * Added a 9.2.0 upgrade step that creates the woocommerce_subscription_downloads table where it is missing. Stores that updated from a version older than 8.1.0 never got the table, so sharing downloadable files with subscription products silently failed.
+    * Removed a redundant maybe_unserialize() call from the product CSV export of subscription plan meta. WooCommerce already unserializes the value before the 'woocommerce_product_export_meta_value' filter runs, so the call never had anything to act on.
+    * The 'woocommerce_subscriptions_switch_is_identical_product' filter receives a seventh argument, whether the switcher found the switch to be to the plan the item is already on. When paying for a pending or failed switch order, that verdict is kept after the filter runs, since nothing is posted on that path for a callback to compare.
+    * On stores using high-performance order storage, WCS_Orders_Table_Subscription_Data_Store now writes only the subscription properties that changed, or that have no stored value, instead of re-asserting all of them on each save. Saving a subscription no longer writes those back over values changed since the instance was loaded, whether by another instance in the same request or by an earlier one. The store overrides get_props_to_update() to look for stored values in the orders meta table, where subscription properties are kept, rather than in post meta, where they are never found.
+
+2026-08-05 - version 9.1.0
+* Fix: Removed the onboarding notice and walkthrough shown after activating Subscriptions, which pointed merchants at the "Simple subscription" and "Variable subscription" product types — both off by default since 9.0.0.
+* Fix: Invalid subscription switch payment links no longer attach an unrelated order to checkout.
+* Fix: Order fields containing serialized text now retain their original value when copied to subscriptions on HPOS stores.
+* Fix: On stores using legacy (posts) order storage, restoring a subscription's parent order from the trash now makes the subscription reappear on the customer's My Account > Subscriptions page.
+* Fix: A subscription plan's sign-up fee shown on the product page (the "Sign-up fee:" line, plan option rows and pre-selected plan details) now passes through the 'woocommerce_subscriptions_product_sign_up_fee' filter, so currency and multi-currency plugins can convert it to match the cart, checkout and charged amount.
+* Fix: Deactivating or updating WooCommerce no longer triggers a site-wide fatal error for up to an hour while Subscriptions' cached WooCommerce version check is still fresh.
+* Fix: Coupons are now correctly applied when paying for a renewal via the Checkout block (previously the discount showed in the total, but was not deducted from the amount charged).
+* Fix: Renewal carts now calculate the correct total when the subscription used a recurring percentage coupon. On tax-inclusive stores, sub-cent rounding could make the coupon's discount look manually applied and produce a wrong total.
+* Tweak: Checkout no longer saves the order an extra time when the cart contains no subscription switch — previously a redundant database write on every checkout.
+* Fix: Setting a yearly "Align Renewal" date on a subscription plan no longer silently discards the alignment when only a month is chosen, or fails with an invalid-date error after the month is switched to one with fewer days.
+* Tweak: Improved the dedicated Action Scheduler queue debug log so routine skipped runs no longer read as failures.
+* Fix: On stores using legacy (posts) order storage, restoring a trashed subscription now returns it to its recorded status (e.g. cancelled) instead of pending, matching the behavior on High-Performance Order Storage.
+* Fix: Enabling web cron support for the first time now generates the web cron URL on the first save, instead of repeatedly asking to save changes without ever producing the URL.
+* Fix: The "New web cron URL generated" confirmation after generating a web cron URL now shows only once, instead of re-appearing on every subsequent save of the Subscriptions settings screen.
+* Fix: Storewide subscription plans now appear on the WooCommerce > Settings > Subscriptions screen when the admin language translates "WooCommerce" into non-Latin characters (e.g. Hebrew) — the screen previously showed an empty, unstyled table even though the plans were still saved.
+* Fix: Upgrading a subscription that was purchased through a resubscribe now credits the amount already paid for the current period, instead of quoting the full prorated price of the new plan.
+* Fix: On stores that prorate sign-up fees, switching a subscription purchased through a resubscribe now charges the new plan's sign-up fee in full, instead of wiping it with a credit for a sign-up fee that was never paid.
+* Tweak: Clearer error message on the Subscriptions settings page when "Prorate until the next billing date" is saved without choosing a product type to prorate.
+* Fix: A stale edit page no longer overwrites the billing schedule after a subscription changes status. Saving an affected Active subscription now clears its stale cancelled date, allowing the remaining schedule to be repaired from the edit screen.
+* Fix: The My Account > View Subscription page no longer triggers a PHP deprecation notice for subscriptions purchased with PayPal Standard.
+* Tweak: Hardened permission and ownership checks across subscription bulk actions, the REST API, and several AJAX and My Account request handlers.
+* Fix: Classic cart and checkout no longer overstate the "due today" item subtotal for a prorated subscription switch or a synced product billed on a later date.
+* Dev: Deprecated WC_Subscriptions_Cart::get_formatted_product_subtotal() and get_due_today_subtotal() - the "due today" item subtotal now renders on the 'woocommerce_cart_item_subtotal' filter, and Subscriptions no longer filters 'woocommerce_cart_product_subtotal', so code calling WC()->cart->get_product_subtotal() directly gets standard WooCommerce output.
+
+2026-07-10 - version 9.0.1
+* Add: A progress notice now appears while your existing All Products for Subscriptions product data migrates in the background, and a completion notice once it finishes.
+* Fix: While the migration runs, products maintain their subscription plans, instead of temporarily showing as one-time only until their batch completes.
+* Fix: WooCommerce no longer logs repeated "Invalid plugin file" errors on every admin page load after All Products for Subscriptions was built into Subscriptions.
+* Fix: The product page's sign-up fee now carries the store's price display suffix (e.g. "incl. VAT") like the subscription price does, so a taxable sign-up fee no longer looks tax-free.
+* Fix: Adding a product to the cart no longer causes a fatal error under PHP 8 when another plugin's 'woocommerce_add_cart_item_data' filter callback returns a non-array value.
+* Tweak: In the Cart block, a subscription item's upfront charge now reads "$10.00 due today" instead of "Due today $10.00", matching the Checkout block.
+* Tweak: The classic shortcode cart and checkout now match the block presentation — the free trial and sign-up fee show on their own labeled lines instead of appended to the price, items with a sign-up fee show the amount due today in the subtotal, and the in-cart subscription plan selector has been removed.
+* Update: Subscription product creation settings description.
+* Dev: New `woocommerce_subscriptions_pre_product_subscription_scheme_mode` filter to short-circuit a product's resolved subscription scheme mode before it's read from meta.
+
+2026-06-23 - version 9.0.0
+* Add: All Products for Subscriptions is now built into WooCommerce Subscriptions — sell any product as a one-time purchase, a subscription, or both, with no separate plugin needed. Existing installations migrate automatically, so you can deactivate the standalone plugin. We've also enhanced it along the way:
+    * Subscription plans now support free trials, sign-up fees, and fixed-amount discounts.
+    * Choose which storewide subscription plans are assigned to a product.
+    * Disable one-time purchases on products that use storewide subscription plans.
+    * Subscription gifting now works with products sold via subscription plans.
+    * Bulk edit now supports updating purchase options, so you can apply storewide plans to specific products in bulk — replacing the deprecated "Limit to categories" option.
+    * Improved billing-date-alignment settings (formerly Synchronization), with clearer first-billing options.
+    * Subscription frequency and expiration are clearer — expiration is now set as a number of payments ("Total payments") rather than a length of time.
+    * The Subscriptions by Product report now includes products sold via subscription plans.
+* Fix: Schedule dates set to the same minute (e.g. trial end and next payment) are now treated as equal, instead of differing by a few seconds and silently reverting the save.
+* Fix: The schedule editor's warning for a next-payment date set before the trial end now reads "Please enter a date after the trial end" instead of incorrectly referring to the start date.
+* Fix: The My Account > Subscriptions page no longer intermittently 404s right after the plugin is activated.
+* Fix: $0 subscription switches made within the renewal-sync grace period are now auto-completed instead of left pending.
+* Fix: Related orders for active subscriptions are no longer swept by the privacy eraser when HPOS is enabled.
+* Fix: When a customer's subscription becomes active or inactive, their user role now switches cleanly per your settings instead of leaving the old role in place.
+* Fix: Paying for the renewal of a gifted subscription with multiple items no longer drops all but the first item.
+* Fix: Guarded `wcs_get_subscription_period_strings()` and `wcs_get_subscription_trial_period_strings()` against PHP 8.1+ "Undefined array key" warnings when an integration uses the `woocommerce_subscription_periods` / `woocommerce_subscription_trial_periods` filter to remove a period.
+* Fix: PHP warning on the Subscriptions by Customer report when a customer account has been deleted or anonymized.
+* Fix: Prevent spurious cancellation emails when never-activated auto-draft subscriptions are deleted.
+* Fix: Don't re-apply the product sign-up fee to renewal, resubscribe or switch order line items when those orders are updated via the Orders REST API, which previously inflated their stored totals.
+* Fix: Prevent the "Limit to one active subscription" setting from being bypassed by paying for an old failed order, which previously let a customer who already had an active subscription end up with a second one.
+* Fix: Email template theme overrides are no longer reported as "out of date" in WooCommerce > Status when the override matches the plugin's template.
+* Fix: Free trials one period long now read "1 week" instead of "week".
+* Tweak: Subscription products now show the free trial and sign-up fee on their own lines below the price, instead of appended to the price text.
+* Dev: The `subscription_renewal`, `subscription_switch` and `subscription_resubscribe` query args are now supported when HPOS is enabled.
+
+2026-06-04 - version 8.8.1
+* Fix: Restore PayPal Standard renewal payments. A regression in 8.8.0 stopped these payments from being recorded, leaving the affected subscriptions stuck in Pending.
+* Fix: Prevent a fatal error that could occur when the new "Dedicated processing" setting is enabled before any subscription background tasks have been scheduled.
+* Fix: Correct remaining class-name casing mistakes exposed by the 8.8.0 classmap autoloader, which could cause fatal errors.
+
+2026-06-02 - version 8.8.0
+* Update: Subscriptions health check tool.
+    * New Resolve action — review a flagged subscription and apply the recommended fix (switch to automatic renewal, or process the renewal now).
+    * New Cancel button for in-flight scans, with partial scan results preserved in the candidates table.
+    * Nightly scans are now enabled or disabled from Subscriptions settings.
+    * Live scan progress now updates in the background while a scan runs, instead of reloading the whole page.
+    * The candidates table now uses the same status label colors as the Subscriptions list.
+    * Action Scheduler admin notices are now suppressed on the tab, avoiding duplicate or conflicting past-due action counts.
+    * Fixed the empty-state message to reference the correct "Run now" button label.
+* Add: New "Processing reliability" settings introduce dedicated processing for subscription scheduled actions and web cron support.
+* Fix: Prevent a fatal error that could lock a merchant out of wp-admin when another plugin loads admin assets early in the page lifecycle.
+* Fix: Relative dates now read "in 2 days" instead of "In 2 days", matching the lowercase "X ago" format.
+* Fix: Prevent the cart from failing to load during a subscription upgrade switch in a proration edge case where the remaining billing days rounded to zero.
+* Fix: A subscription product can no longer be added to the cart when a resubscribe or switch for the same product is already in progress.
+* Fix: Close gaps that let customers bypass the "Limit to one active subscription" setting on the Blocks checkout and other paths.
+* Fix: Recurring-only coupons no longer appear in the initial order summary on the Blocks checkout, where they don't apply to the first payment.
+* Dev: Same-gateway renewal retries no longer call `update_payment_method()`, so its hooks — `woocommerce_subscriptions_pre_update_payment_method`, `woocommerce_subscription_payment_method_updated`, and `woocommerce_subscription_payment_method_updated_to_{gateway}` — no longer fire on these retries. Use `woocommerce_subscription_failing_payment_method_updated` (which always fires) instead.
+* Dev: The `wcs_switch_proration_extra_to_pay` filter now receives the switch cart item as a new `$switch_item` argument.
+* Dev: Class autoloading now uses Composer's classmap. `WCS_Autoloader` and `WCS_Core_Autoloader` classes, and `WC_Subscriptions_Core_Plugin::get_autoloader()`, remain as deprecated no-op shells for backwards compatibility.
+* Dev: Improved compatibility with jQuery 4.x, which is expected to roll out in a future WordPress release.
+
+2026-05-01 - version 8.7.1
+* Fix: Subscriptions health check — Renewal preference column sorting now groups rows by their displayed value, and a "Default" filter option has been added.
+
+2026-04-30 - version 8.7.0
+* Add: Subscriptions Health Check — a new diagnostic tool under WooCommerce > Status that surfaces subscriptions which may need merchant attention. The initial release includes two views:
+    * Supports auto-renewal — subscriptions on manual renewal that have a saved payment token on a gateway capable of automatic renewal.
+    * Missing renewals — subscriptions that should be renewing but aren't, either because the next payment date is in the past or because the expected renewal order is missing (often caused by plugin or custom code conflicts, server or migration issues, or Action Scheduler not running).
+* Add: Cost of Goods Sold is now calculated on subscriptions and renewal orders when the WooCommerce COGS feature is enabled.
+* Add: When a customer updates their billing or shipping address from their account page, an order note is created on the subscription.
+* Fix: "Limit to one active subscription" now treats pending-cancel subscriptions as active, preventing duplicate purchases while a subscription is still providing access.
+* Fix: Multi-item subscription switching: corrected a stale total that caused overcharges on renewal, prevented items from being incorrectly split across two new subscriptions, and ensured the original subscription is cancelled when all its items switch away.
+* Fix: Subscription period interval strings now correctly display ordinal labels (e.g. "every 22nd") for custom intervals greater than 6.
+* Fix: Plain text subscription emails no longer display raw HTML markup in price sections.
+* Fix: Deleted or trashed renewal orders could remain attached to a cart after validation and proceed through checkout.
+* Fix: On stores running an object cache, a freshly-created renewal order could return a $0 total in memory while the database row held the correct amount, resulting in the order being incorrectly marked as paid.
+
+2026-04-22 - version 8.6.1
+* Fix: Changing the payment details on a subscription could sometimes override the subscriber's renewal method choice when the 'Display the auto renewal toggle' setting is enabled.
+* Fix: Updated the subscription switching flow to respect the renewal method choice on the subscription.
+
+2026-03-31 - version 8.6.0
+* Fix: Missing space between subscription price and billing period in the Cart and Checkout Blocks.
+* Fix: Fatal error when setting a gift recipient on a manually created subscription with no parent order.
+* Fix: Empty reminder timing causes fatal errors.
+* Fix: Prevent browser autocomplete on subscription schedule inputs.
+* Fix: Subscription checkout failing during DST spring-forward gap on servers with non-UTC PHP timezone.
+* Fix: Remove the "Upgrade or Downgrade" button from gifting recipient emails where switching is not available.
+* Fix: Schedule panel now displays actual stored dates instead of today's date for subscriptions with past dates.
+
+2026-03-03 - version 8.5.0
+* Add: Setting to show or hide shared downloadable products in subscription details. Disable to improve performance for subscriptions with many downloads.
+* Fix: Fatal error on the View Subscription page when a subscription contains a deleted product and item removal is enabled.
+* Fix: PHP warnings when HPOS Data Caching is enabled alongside WooCommerce Subscriptions.
+* Fix: Added translation the billing period in the Cart/Checkout Block recurring total label for intervals of 2+. Changes ordinal phrasing ("every 2nd month") to cardinal ("every 2 months").
+* Dev: Refactored how subscription price strings are built internally. No changes to pricing display.
+
+2026-02-04 - version 8.4.0
+* Add: New optional notification email to alert merchants when a customer reactivates a subscription they had set to cancelled.
+* Update: Remove gender-specific language from the tooltip for the "Inactive Subscriber Role" setting.
+* Fix: Prevent fatal error in PayPal Standard IPN handler when processing renewals after initial payment failure and related renewal order is deleted.
+* Fix: When generating plain text emails, avoid outputting HTML within the order details area.
+* Fix: List downloadable files within the 'processing renewal order' email, to better align with the corresponding parent order email.
+* Fix: Resolve a React error across the storefront and other public pages, by preventing the re-initialization of gifting recipient containers.
+* Fix: Allow merchants to activate subscriptions containing private products.
+* Fix: Subscriptions created from carts with multiple products with different billing schedules now correctly calculate shipping eligibility based on their individual cart totals instead of the combined original cart total.
+* Fix: Upgrade/downgrade button now displays correctly on its own line on the View Subscription page.
+* Fix: Makes the "for x intervals" text (ie, "for 6 months") within the cart order summary translatable.
+* Fix: Prevent duplicate subscription fields appearing in subscription product variations on a product edit page when WooCommerce's Cost of Goods Sold (COGS) feature is enabled.
+* Dev: Removed unused legacy code for Woo core < 3.2.
+
+2026-01-12 - version 8.3.1
+* Fix: Resolved an issue that was preventing limited subscription renewals.
+* Fix: Resolved a React-error that may occur when loading the spotlight welcome announcement for gifting.
+* Fix: Updated WooCommerce's CSV product importer to correctly update subscription product prices.
+
+2026-01-06 - version 8.3.0
+* Add: Support for ajax add-to-cart flows from the single product page, when upgrading or downgrading subscriptions.
+* Add: Enhanced functionality from the WooCommerce Subscription Downloads plugin has now been integrated directly into WooCommerce Subscriptions.
+* Fix: Ensured the subject line for the "Customer Renewal Invoice" email correctly updates.
+
+2025-12-22 - version 8.2.1
+* Fix: Subscription pricing strings now correctly display singular and plural billing intervals like "$10 / month" and "$10 every 3 months" in cart and checkout totals.
+* Fix: Display all recurring coupon names in the totals section of classic cart and checkout when multiple recurring coupons are applied.
+* Fix: Payment method selector options on Subscriptions list page are now properly displaying the payment method name for gateways providing multiple payment methods.
+* Fix: PayPal Standard plugin IPN renewal orders not being created for failed payment retries.
+* Fix: Prevent fatal errors on shop pages when special characters like % are used in a product name.
+* Fix: Prevent an email validation error from briefly and inadvertently flashing on the screen when the "this is a gift" checkbox is used.
+
 2025-12-10 - version 8.2.0
 * Fix: Various accessibility issues.
     * Added button roles.

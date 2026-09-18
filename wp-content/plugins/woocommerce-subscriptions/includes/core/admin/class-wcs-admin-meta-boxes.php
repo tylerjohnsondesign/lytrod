@@ -33,6 +33,9 @@ class WCS_Admin_Meta_Boxes {
 		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_styles_scripts' ), 20 );
 
 		// We need to hook to the 'shop_order' rather than 'shop_subscription' because we declared that the 'shop_subscription' order type supports 'order-meta-boxes'.
+		// WCS_Meta_Box_Schedule::save must run before WCS_Meta_Box_Subscription_Data::save (which changes the status):
+		// its staleness guard compares the posted render-time status against the subscription's pre-transition status,
+		// so reordering these registrations would make every legitimate status-changing save skip the schedule fields.
 		add_action( 'woocommerce_process_shop_order_meta', 'WCS_Meta_Box_Schedule::save', 10, 2 );
 		add_action( 'woocommerce_process_shop_order_meta', 'WCS_Meta_Box_Subscription_Data::save', 10, 2 );
 
@@ -173,8 +176,8 @@ class WCS_Admin_Meta_Boxes {
 					array(
 						'i18n_start_date_notice'         => __( 'Please enter a start date in the past.', 'woocommerce-subscriptions' ),
 						'i18n_past_date_notice'          => WCS_Staging::is_duplicate_site() ? __( 'Please enter a date at least 2 minutes into the future.', 'woocommerce-subscriptions' ) : __( 'Please enter a date at least one hour into the future.', 'woocommerce-subscriptions' ),
-						'i18n_next_payment_start_notice' => __( 'Please enter a date after the trial end.', 'woocommerce-subscriptions' ),
-						'i18n_next_payment_trial_notice' => __( 'Please enter a date after the start date.', 'woocommerce-subscriptions' ),
+						'i18n_next_payment_start_notice' => __( 'Please enter a date after the start date.', 'woocommerce-subscriptions' ),
+						'i18n_next_payment_trial_notice' => __( 'Please enter a date after the trial end.', 'woocommerce-subscriptions' ),
 						'i18n_trial_end_start_notice'    => __( 'Please enter a date after the start date.', 'woocommerce-subscriptions' ),
 						'i18n_trial_end_next_notice'     => __( 'Please enter a date before the next payment.', 'woocommerce-subscriptions' ),
 						'i18n_end_date_notice'           => __( 'Please enter a date after the next payment.', 'woocommerce-subscriptions' ),
@@ -506,6 +509,11 @@ class WCS_Admin_Meta_Boxes {
 		$order = wc_get_order( wp_doing_ajax() && isset( $_POST['order_id'] ) ? absint( $_POST['order_id'] ) : $order_id );
 
 		if ( ! $order ) {
+			return;
+		}
+
+		// The woocommerce_save_data nonce is not order-specific, so authorize against this order before saving its meta.
+		if ( ! current_user_can( 'edit_shop_order', $order->get_id() ) ) {
 			return;
 		}
 

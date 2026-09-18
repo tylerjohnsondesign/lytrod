@@ -101,6 +101,9 @@ class WC_Subscriptions_Upgrader {
 		}
 
 		add_action( 'init', [ __CLASS__, 'initialise_background_updaters' ], 0 );
+
+		WCS_Upgrade_9_0_0::init();
+		WCS_Plugin_Upgrade_9_2_0::init();
 	}
 
 	/**
@@ -227,9 +230,40 @@ class WC_Subscriptions_Upgrader {
 			WCS_Plugin_Upgrade_7_8_0::check_gifting_plugin_is_enabled();
 		}
 
-		if ( false && version_compare( self::$stored_plugin_version, '8.2.0', '<' ) ) {
-			// TODO: remove false from the above conditional, once we are ready to make subscription downloads functionality available.
-			WCS_Plugin_Upgrade_8_1_0::check_downloads_plugin_is_enabled();
+		if ( version_compare( self::$stored_plugin_version, '8.3.0', '<' ) ) {
+			WCS_Plugin_Upgrade_8_3_0::check_downloads_plugin_is_enabled();
+		}
+
+		if ( version_compare( self::$stored_plugin_version, '8.5.0', '<' ) ) {
+			WCS_Plugin_Upgrade_8_5_0::maybe_enable_downloads_line_items();
+		}
+
+		if ( version_compare( self::$stored_plugin_version, '8.8.0', '<' ) ) {
+			WCS_Plugin_Upgrade_8_8_0::maybe_auto_enable_reserved_processing_capacity();
+		}
+
+		if ( version_compare( self::$stored_plugin_version, '9.0.0', '<' ) ) {
+			WCS_Upgrade_9_0_0::maybe_migrate_proration_option();
+			WCS_Upgrade_9_0_0::maybe_enable_subscription_product_types();
+			WCS_Upgrade_9_0_0::log_apfs_products_migration_status();
+		}
+
+		if ( version_compare( self::$stored_plugin_version, '9.2.0', '<' ) ) {
+			// The renewal-option normalization runs first: the 9.2.0 read path enforces the
+			// manual/automatic pairing from the moment the new files are live, so this cheap
+			// option write must not wait behind the slower steps (table creation, migration
+			// scheduling) - or be lost entirely if one of them fatals mid-request.
+			WCS_Plugin_Upgrade_9_2_0::maybe_normalize_manual_renewal_options();
+
+			// A first install (no stored core library version, as in legacy_core_library_upgrades()) starts
+			// on the new switch button default; only a store updating from an earlier version was showing
+			// the old one.
+			if ( '0' !== self::$stored_core_library_version ) {
+				WCS_Plugin_Upgrade_9_2_0::maybe_preserve_switch_button_text();
+			}
+
+			WCS_Plugin_Upgrade_9_2_0::maybe_create_subscription_downloads_table();
+			WCS_Plugin_Upgrade_9_2_0::maybe_schedule_gifting_migration();
 		}
 	}
 
@@ -271,7 +305,7 @@ class WC_Subscriptions_Upgrader {
 	 * @since 1.0.0 - Migrated from WooCommerce Subscriptions v2.4.0
 	 */
 	public static function initialise_background_updaters() {
-		$logger = new WC_logger();
+		$logger = new WC_Logger();
 		self::$background_updaters['3.1']['subtracted_base_tax_repair'] = new WCS_Repair_Subtracted_Base_Tax_Line_Item_Meta( $logger );
 
 		// Init the updaters
@@ -1002,7 +1036,7 @@ class WC_Subscriptions_Upgrader {
 		$woocommerce_database_version = get_option( 'woocommerce_version' );
 
 		if ( $woocommerce_active_version !== $woocommerce_database_version && version_compare( $woocommerce_active_version, '3.0', '>=' ) && version_compare( $woocommerce_database_version, '3.0', '<' ) ) {
-			$logger             = new WC_logger();
+			$logger             = new WC_Logger();
 			$background_updater = new WCS_Repair_Subscription_Address_Indexes( $logger );
 			$background_updater->init();
 			$background_updater->schedule_repair();

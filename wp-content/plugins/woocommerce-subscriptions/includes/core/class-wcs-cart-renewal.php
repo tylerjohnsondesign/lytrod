@@ -177,12 +177,14 @@ class WCS_Cart_Renewal {
 
 		if ( isset( $_GET['pay_for_order'] ) && isset( $_GET['key'] ) && isset( $wp->query_vars['order-pay'] ) ) {
 
-			// Pay for existing order
-			$order_key = isset( $_GET['key'] ) ? wc_clean( wp_unslash( $_GET['key'] ) ) : '';
+			// Pay for existing order.
+			// sanitize_text_field() returns '' for array input, which hash_equals() would otherwise reject.
+			// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- The order key checked below is this flow's authorization control.
+			$order_key = isset( $_GET['key'] ) ? sanitize_text_field( wp_unslash( $_GET['key'] ) ) : '';
 			$order_id  = isset( $wp->query_vars['order-pay'] ) ? $wp->query_vars['order-pay'] : absint( $_GET['order_id'] );
 			$order     = wc_get_order( $order_id );
 
-			if ( wcs_get_objects_property( $order, 'order_key' ) === $order_key && $order->has_status( array( 'pending', 'failed' ) ) && wcs_order_contains_renewal( $order ) ) {
+			if ( $order instanceof WC_Order && hash_equals( $order->get_order_key(), $order_key ) && $order->has_status( array( 'pending', 'failed' ) ) && wcs_order_contains_renewal( $order ) ) {
 
 				// If a user isn't logged in, allow them to login first and then redirect back
 				if ( ! is_user_logged_in() ) {
@@ -399,7 +401,7 @@ class WCS_Cart_Renewal {
 				continue;
 			}
 
-			if ( isset( $item[ $this->cart_item_key ]['renewal_order_id'] ) && ! 'shop_order' === WC_Data_Store::load( 'order' )->get_order_type( $item[ $this->cart_item_key ]['renewal_order_id'] ) ) {
+			if ( isset( $item[ $this->cart_item_key ]['renewal_order_id'] ) && ! wc_get_order( $item[ $this->cart_item_key ]['renewal_order_id'] ) ) {
 				$cart->remove_cart_item( $key );
 				$removed_count_order++;
 				continue;
@@ -729,8 +731,11 @@ class WCS_Cart_Renewal {
 	public function items_removed_title( $product_title, $cart_item ) {
 
 		if ( isset( $cart_item[ $this->cart_item_key ]['subscription_id'] ) ) {
-			$subscription  = $this->get_order( $cart_item );
-			$product_title = ( count( $subscription->get_items() ) > 1 ) ? esc_html_x( 'All linked subscription items were', 'Used in WooCommerce by removed item notification: "_All linked subscription items were_ removed. Undo?" Filter for item title.', 'woocommerce-subscriptions' ) : $product_title;
+			$subscription = $this->get_order( $cart_item );
+
+			if ( $subscription && count( $subscription->get_items() ) > 1 ) {
+				$product_title = esc_html_x( 'All linked subscription items were', 'Used in WooCommerce by removed item notification: "_All linked subscription items were_ removed. Undo?" Filter for item title.', 'woocommerce-subscriptions' );
+			}
 		}
 
 		return $product_title;
@@ -977,7 +982,7 @@ class WCS_Cart_Renewal {
 			$cart_item = $this->cart_contains();
 		}
 
-		if ( false !== $cart_item && isset( $cart_item[ $this->cart_item_key ] ) ) {
+		if ( false !== $cart_item && isset( $cart_item[ $this->cart_item_key ]['renewal_order_id'] ) ) {
 			$order = wc_get_order( $cart_item[ $this->cart_item_key ]['renewal_order_id'] );
 		}
 
@@ -1407,8 +1412,13 @@ class WCS_Cart_Renewal {
 			$total_coupon_discount += floatval( array_sum( wc_list_pluck( $coupon_items, 'get_discount_tax' ) ) );
 		}
 
-		// If the order total discount is different from the discount applied from coupons we have a manually applied discount.
-		$order_has_manual_discount = $order_discount !== $total_coupon_discount;
+		// A non-zero discount without coupon items is unambiguously manual. When coupon items are present,
+		// normalize the aggregate difference to WooCommerce's internal calculation precision to avoid a raw
+		// float comparison changing the result at the accepted one-minor-unit boundary. See WOOSUBS-939.
+		$price_decimals            = wc_get_price_decimals();
+		$rounding_tolerance        = pow( 10, -$price_decimals );
+		$discount_difference       = round( abs( $order_discount - $total_coupon_discount ), wc_get_rounding_precision() );
+		$order_has_manual_discount = empty( $coupon_items ) || $discount_difference > $rounding_tolerance;
 
 		// Get all coupon line items as coupon objects.
 		if ( ! empty( $coupon_items ) ) {
@@ -1453,7 +1463,17 @@ class WCS_Cart_Renewal {
 					continue;
 				}
 
-				$coupon = $this->get_pseudo_coupon( $coupon_item->get_discount() );
+				$order    = $coupon_item->get_order();
+				$discount = (float) $coupon_item->get_discount();
+
+				// Pseudo coupon amounts are applied to the cart in the order's price-entry basis,
+				// so when the order's prices include tax, the stored tax-exclusive discount needs
+				// its tax added back. Mirrors the basis handling in setup_discounts().
+				if ( $order && $order->get_prices_include_tax() ) {
+					$discount += (float) $coupon_item->get_discount_tax();
+				}
+
+				$coupon = $this->get_pseudo_coupon( $discount );
 				$coupon->set_code( $coupon_item->get_code() );
 			} elseif ( 'subscription_renewal' === $this->cart_item_key ) {
 				$coupon_type = $coupon->get_discount_type();
@@ -1584,6 +1604,11 @@ class WCS_Cart_Renewal {
 	 * @since 1.6.3
 	 */
 	public function verify_session_belongs_to_customer() {
+		// The session is not initialized in some contexts (eg cron or CLI requests) where third-party code can still trigger this callback.
+		if ( ! WC()->session ) {
+			return;
+		}
+
 		$cart     = WC()->session->get( 'cart', null );
 		$customer = WC()->session->get( 'customer', null );
 
@@ -1631,38 +1656,49 @@ class WCS_Cart_Renewal {
 	}
 
 	/**
-	 * Sets the order cart hash when paying for a renewal order via the Block Checkout.
+	 * Allows a renewal order to pass Block Checkout's draft order validation.
 	 *
 	 * This function is hooked onto the 'woocommerce_order_has_status' filter, is only applied during REST API requests, only applies to the
 	 * 'checkout-draft' status (which only Block Checkout orders use) and to renewal orders that are currently being paid for in the cart.
 	 * All other order statuses, orders and scenarios remain unaffected by this function.
 	 *
 	 * This function is necessary to override the default logic in @see DraftOrderTrait::is_valid_draft_order().
-	 * This function behaves similarly to @see WCS_Cart_Renewal::update_cart_hash() for the standard checkout and is hooked onto the 'woocommerce_create_order' filter.
+	 * This function serves a similar purpose to @see WCS_Cart_Renewal::update_cart_hash(), which handles draft order validation for the standard checkout via the 'woocommerce_create_order' filter.
+	 *
+	 * The previous implementation set the order cart hash to match the current cart in order to satisfy the second condition in
+	 * is_valid_draft_order() ($order->has_cart_hash()). However, this inadvertently prevented update_line_items_from_cart() from
+	 * refreshing the order's line items (it skips the update when hashes match), causing discounts like coupons to never sync to
+	 * the order. Instead, we satisfy the first condition in is_valid_draft_order() by returning true for 'checkout-draft', leaving
+	 * the cart hash untouched so line items are always refreshed from the cart.
 	 *
 	 * @param bool     $has_status Whether the order has the status.
 	 * @param WC_Order $order      The order.
 	 * @param string   $status     The status to check.
 	 *
-	 * @return bool Whether the order has the status. Unchanged by this function.
+	 * @return bool Whether the order has the status. True for renewal orders being paid via Block Checkout, unchanged otherwise.
 	 */
 	public function set_renewal_order_cart_hash_on_block_checkout( $has_status, $order, $status ) {
 		/**
-		 * We only need to update the order's cart hash when the has_status() check is for 'checkout-draft' (indicating
+		 * We only need to intervene when the has_status() check is for 'checkout-draft' (indicating
 		 * this is the status check in DraftOrderTrait::is_valid_draft_order()) and the order doesn't have that status. Orders
 		 * which already have the checkout-draft status don't need to be updated to bypass the checkout block logic.
+		 *
+		 * The session check enforces this function's documented precondition (it only applies during Store API checkout
+		 * requests): third-party code can call has_status( 'checkout-draft' ) in contexts where the session is not
+		 * initialized (eg while a renewal order is created during a scheduled payment), which would otherwise fatal.
 		 */
-		if ( $has_status || 'checkout-draft' !== $status ) {
+		if ( $has_status || 'checkout-draft' !== $status || ! WC()->session ) {
 			return $has_status;
 		}
 
-		// If the order being validated is the order in the cart, then we need to update the cart hash so it can be resumed.
+		// If the order being validated is the renewal order in the cart, report it as having 'checkout-draft' status so
+		// is_valid_draft_order() accepts it. We intentionally avoid modifying the cart hash here — leaving it as-is ensures
+		// update_line_items_from_cart() detects a hash mismatch and refreshes line items (including any applied discounts).
 		if ( $order && $order->get_id() === (int) WC()->session->get( 'store_api_draft_order', 0 ) ) {
 			$cart_order = $this->get_order();
 
 			if ( $cart_order && $cart_order->get_id() === $order->get_id() ) {
-				// Note: We need to pass the order object so the order instance WooCommerce uses will have the updated hash.
-				$this->set_cart_hash( $order );
+				return true;
 			}
 		}
 

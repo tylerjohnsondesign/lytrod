@@ -219,10 +219,15 @@ class WCS_Switch_Totals_Calculator {
 	 * @return bool
 	 */
 	protected function should_prorate_recurring_price( $switch_item ) {
-		$prorate_all     = in_array( $this->apportion_recurring_price, array( 'yes', 'yes-upgrade' ) );
-		$prorate_virtual = in_array( $this->apportion_recurring_price, array( 'virtual', 'virtual-upgrade' ) );
+		$prorate_all      = in_array( $this->apportion_recurring_price, array( 'yes', 'yes-upgrade' ), true );
+		$prorate_virtual  = in_array( $this->apportion_recurring_price, array( 'virtual', 'virtual-upgrade' ), true );
+		$prorate_physical = in_array( $this->apportion_recurring_price, array( 'physical', 'physical-upgrade' ), true );
 
-		return apply_filters( 'wcs_switch_should_prorate_recurring_price', $prorate_all || ( $prorate_virtual && $switch_item->is_virtual_product() ), $switch_item );
+		$should_prorate = $prorate_all
+			|| ( $prorate_virtual && $switch_item->is_virtual_product() )
+			|| ( $prorate_physical && ! $switch_item->is_virtual_product() );
+
+		return apply_filters( 'wcs_switch_should_prorate_recurring_price', $should_prorate, $switch_item );
 	}
 
 	/**
@@ -273,7 +278,7 @@ class WCS_Switch_Totals_Calculator {
 	 * @return bool
 	 */
 	protected function should_extend_prepaid_term() {
-		return in_array( $this->apportion_recurring_price, array( 'virtual', 'yes' ) );
+		return in_array( $this->apportion_recurring_price, array( 'virtual', 'yes', 'physical' ), true );
 	}
 
 	/**
@@ -285,7 +290,7 @@ class WCS_Switch_Totals_Calculator {
 	 */
 	protected function should_apportion_length( $switch_item ) {
 
-		return apply_filters( 'wcs_switch_should_prorate_length', 'yes' == $this->apportion_length || ( 'virtual' == $this->apportion_length && $switch_item->is_virtual_product() ), $switch_item );
+		return apply_filters( 'wcs_switch_should_prorate_length', 'yes' === $this->apportion_length || ( 'virtual' === $this->apportion_length && $switch_item->is_virtual_product() ) || ( 'physical' === $this->apportion_length && ! $switch_item->is_virtual_product() ), $switch_item );
 	}
 
 	/** Total Calculators */
@@ -371,7 +376,18 @@ class WCS_Switch_Totals_Calculator {
 
 		// We need to find the per item extra to pay so we can set it as the sign-up fee (WC will then multiply it by the quantity)
 		$extra_to_pay = $extra_to_pay / $switch_item->cart_item['quantity'];
-		return apply_filters( 'wcs_switch_proration_extra_to_pay', $extra_to_pay, $switch_item->subscription, $switch_item->cart_item, $switch_item->get_days_in_old_cycle() );
+
+		/**
+		 * Filter the extra amount to pay when upgrading a subscription.
+		 *
+		 * @param float                $extra_to_pay      The calculated upgrade cost per item.
+		 * @param WC_Subscription      $subscription      The subscription being switched.
+		 * @param array                $cart_item         The cart item recording the switch.
+		 * @param int                  $days_in_old_cycle The number of days in the current subscription's billing cycle.
+		 * @param WCS_Switch_Cart_Item $switch_item       The switch cart item object, providing access to all switch data.
+		 * @since 8.8.0
+		 */
+		return apply_filters( 'wcs_switch_proration_extra_to_pay', $extra_to_pay, $switch_item->subscription, $switch_item->cart_item, $switch_item->get_days_in_old_cycle(), $switch_item );
 	}
 
 	/**
@@ -546,8 +562,11 @@ class WCS_Switch_Totals_Calculator {
 		// When a customer pays the full new product price minus the amount already paid, we need to reduce the prepaid term and the subscription's next payment is 1 billing cycle away.
 		$this->cart->cart_contents[ $cart_item_key ]['subscription_switch']['first_payment_timestamp'] = WC_Subscriptions_Product::get_first_renewal_payment_time( $switch_item->product );
 
+		$total_paid_for_current_period = $switch_item->get_total_paid_for_current_period();
+		$days_in_old_cycle             = $switch_item->get_days_in_old_cycle();
+
 		// The customer is owed whatever they didn't use. If they paid $100 for a monthly subscription and are switching half way through the month, they are owed $50.
-		$remaining_amount_not_consumed = ( $switch_item->get_total_paid_for_current_period() / $switch_item->get_days_in_old_cycle() ) * $switch_item->get_days_until_next_payment();
+		$remaining_amount_not_consumed = ( $days_in_old_cycle > 0 ? $total_paid_for_current_period / $days_in_old_cycle : $total_paid_for_current_period ) * $switch_item->get_days_until_next_payment();
 
 		// The customer pays the full price of the new product minus the amount they didn't use.
 		return ( WC_Subscriptions_Product::get_price( $switch_item->product ) * $switch_item->cart_item['quantity'] ) - ( $remaining_amount_not_consumed );

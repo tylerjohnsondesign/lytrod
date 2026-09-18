@@ -135,9 +135,12 @@ class WC_Subscriptions_Change_Payment_Gateway {
 
 		// If the request to pay for the order belongs to a subscription but there's no GET params for changing payment method, show receipt page.
 		if ( ! self::$is_request_to_change_payment ) {
-			$valid_request    = true;
-			$subscription     = wcs_get_subscription( absint( $wp->query_vars['order-pay'] ) );
-			$subscription_key = isset( $_GET['key'] ) ? wc_clean( $_GET['key'] ) : '';
+			$valid_request = true;
+			$subscription  = wcs_get_subscription( absint( $wp->query_vars['order-pay'] ) );
+
+			// sanitize_text_field() returns '' for array input, which hash_equals() would otherwise reject.
+			// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- The order key checked below is this flow's authorization control.
+			$subscription_key = isset( $_GET['key'] ) ? sanitize_text_field( wp_unslash( $_GET['key'] ) ) : '';
 
 			if ( ! $subscription ) {
 				wc_print_notice( __( 'There was an unexpected problem with your request. Please try again.', 'woocommerce-subscriptions' ), 'error' );
@@ -158,7 +161,7 @@ class WC_Subscriptions_Change_Payment_Gateway {
 			 */
 			do_action( 'wcs_before_replace_pay_shortcode', $subscription );
 
-			if ( $subscription && $subscription->get_id() === absint( $wp->query_vars['order-pay'] ) && $subscription->get_order_key() === $subscription_key ) {
+			if ( $subscription instanceof WC_Subscription && $subscription->get_id() === absint( $wp->query_vars['order-pay'] ) && hash_equals( $subscription->get_order_key(), $subscription_key ) ) {
 				WCS_Template_Loader::get_subscription_receipt_template( $subscription );
 			} else {
 				// The before_woocommerce_pay action would have printed all the notices so we need to print the notice directly.
@@ -226,7 +229,13 @@ class WC_Subscriptions_Change_Payment_Gateway {
 	private static function validate_change_payment_request( $subscription = null ) {
 		$is_valid = true;
 
-		if ( wp_verify_nonce( wc_clean( wp_unslash( $_GET['_wpnonce'] ) ) ) === false ) {
+		// Both values are read defensively: this runs on any ?change_payment_method= request, including one
+		// that omits them entirely. sanitize_text_field() is used rather than wc_clean() because wc_clean()
+		// maps over arrays and returns an array, which hash_equals() rejects with a TypeError.
+		$nonce     = isset( $_GET['_wpnonce'] ) ? sanitize_text_field( wp_unslash( $_GET['_wpnonce'] ) ) : '';
+		$order_key = isset( $_GET['key'] ) ? sanitize_text_field( wp_unslash( $_GET['key'] ) ) : '';
+
+		if ( wp_verify_nonce( $nonce ) === false ) {
 			$is_valid = false;
 			wc_add_notice( __( 'There was an error with your request. Please try again.', 'woocommerce-subscriptions' ), 'error' );
 		} elseif ( empty( $subscription ) ) {
@@ -238,7 +247,7 @@ class WC_Subscriptions_Change_Payment_Gateway {
 		} elseif ( ! $subscription->can_be_updated_to( 'new-payment-method' ) ) {
 			$is_valid = false;
 			wc_add_notice( __( 'The payment method can not be changed for that subscription.', 'woocommerce-subscriptions' ), 'error' );
-		} elseif ( $subscription->get_order_key() !== $_GET['key'] ) {
+		} elseif ( ! hash_equals( $subscription->get_order_key(), $order_key ) ) {
 			$is_valid = false;
 			wc_add_notice( __( 'Invalid order.', 'woocommerce-subscriptions' ), 'error' );
 		}
@@ -293,11 +302,16 @@ class WC_Subscriptions_Change_Payment_Gateway {
 			return;
 		}
 
-		do_action( 'woocommerce_subscription_change_payment_method_via_pay_shortcode', $subscription );
+		// The order key is this flow's authorization control (order-pay must keep working for guests). Verify it
+		// before firing the hook, so listeners never receive an unverified subscription.
+		// sanitize_text_field() returns '' for array input, which hash_equals() would otherwise reject.
+		$order_key = isset( $_GET['key'] ) ? sanitize_text_field( wp_unslash( $_GET['key'] ) ) : '';
 
-		if ( ! $subscription instanceof WC_Subscription || $subscription->get_order_key() !== wc_clean( wp_unslash( $_GET['key'] ?? '' ) ) ) {
+		if ( ! $subscription instanceof WC_Subscription || ! hash_equals( $subscription->get_order_key(), $order_key ) ) {
 			return;
 		}
+
+		do_action( 'woocommerce_subscription_change_payment_method_via_pay_shortcode', $subscription );
 
 		try {
 			// We open an output buffer to suppress any error noise that might break the redirect.
@@ -334,12 +348,18 @@ class WC_Subscriptions_Change_Payment_Gateway {
 			$new_payment_method = wc_clean( $_POST['payment_method'] );
 			$notice = $subscription->has_payment_gateway() ? __( 'Payment method updated.', 'woocommerce-subscriptions' ) : __( 'Payment method added.', 'woocommerce-subscriptions' );
 
+			// Compute the desired renewal mode before update_payment_method() runs, because that call goes
+			// through WC_Subscription::set_payment_method() which may flip requires_manual_renewal as a side
+			// effect. Applying the unified rule afterwards needs to see the subscriber's pre-change preference.
+			// @phpstan-ignore property.notFound
+			$available_gateways          = WC()->payment_gateways->get_available_payment_gateways();
+			$new_gateway_for_rule        = isset( $available_gateways[ $new_payment_method ] ) ? $available_gateways[ $new_payment_method ] : null;
+			$new_requires_manual_renewal = wcs_should_require_manual_renewal( $subscription, $new_gateway_for_rule );
+
 			// Allow some payment gateways which can't process the payment immediately, like PayPal, to do it later after the payment/sign-up is confirmed
 			if ( apply_filters( 'woocommerce_subscriptions_update_payment_via_pay_shortcode', true, $new_payment_method, $subscription ) ) {
 				self::update_payment_method( $subscription, $new_payment_method );
 			}
-
-			$available_gateways = WC()->payment_gateways->get_available_payment_gateways();
 
 			// Validate
 			$available_gateways[ $new_payment_method ]->validate_fields();
@@ -377,7 +397,7 @@ class WC_Subscriptions_Change_Payment_Gateway {
 					return;
 				}
 
-				$subscription->set_requires_manual_renewal( false );
+				$subscription->set_requires_manual_renewal( $new_requires_manual_renewal );
 				$subscription->save();
 
 				// Does the customer want all current subscriptions to be updated to this payment method?
@@ -462,9 +482,19 @@ class WC_Subscriptions_Change_Payment_Gateway {
 			// Clear any stale _delayed_update_payment_method_all meta existing on the users other subscriptions if it exists.
 			$user_subscription->delete_meta_data( '_delayed_update_payment_method_all' );
 
+			// Capture the subscriber's existing renewal preference so it can be preserved across this bulk
+			// payment-method update. The "Use this payment method for all of my current subscriptions" option
+			// is about syncing gateways, not about changing each subscription's auto-renew setting.
+			$was_manual = $user_subscription->get_requires_manual_renewal();
+
 			self::update_payment_method( $user_subscription, $new_payment_method, $payment_meta_table );
 
-			$user_subscription->set_requires_manual_renewal( false );
+			// Restore the subscriber's original manual-renewal preference if set_payment_method() flipped it
+			// to automatic as a side effect. For subscriptions that were already automatic, leave the setter's
+			// decision alone — it correctly flips to manual when the new gateway can't support automatic renewals.
+			if ( $was_manual ) {
+				$user_subscription->set_requires_manual_renewal( true );
+			}
 			$user_subscription->save();
 		}
 
@@ -644,7 +674,10 @@ class WC_Subscriptions_Change_Payment_Gateway {
 	public static function maybe_zero_total( $total, $subscription ) {
 		global $wp;
 
-		if ( ! empty( $_POST['_wcsnonce'] ) && wp_verify_nonce( wc_clean( wp_unslash( $_POST['_wcsnonce'] ) ), 'wcs_change_payment_method' ) && isset( $_POST['woocommerce_change_payment'] ) && wcs_is_subscription( $subscription ) && $subscription->get_order_key() == $_GET['key'] && $subscription->get_id() == absint( $_POST['woocommerce_change_payment'] ) ) {
+		// sanitize_text_field() returns '' for array input, which hash_equals() would otherwise reject.
+		$order_key = isset( $_GET['key'] ) ? sanitize_text_field( wp_unslash( $_GET['key'] ) ) : '';
+
+		if ( ! empty( $_POST['_wcsnonce'] ) && wp_verify_nonce( wc_clean( wp_unslash( $_POST['_wcsnonce'] ) ), 'wcs_change_payment_method' ) && isset( $_POST['woocommerce_change_payment'] ) && wcs_is_subscription( $subscription ) && hash_equals( $subscription->get_order_key(), $order_key ) && $subscription->get_id() === absint( wp_unslash( $_POST['woocommerce_change_payment'] ) ) ) {
 			$total = 0;
 		} elseif ( ! self::$is_request_to_change_payment && isset( $wp->query_vars['order-pay'] ) && wcs_is_subscription( absint( $wp->query_vars['order-pay'] ) ) ) {
 			// if the request to pay for the order belongs to a subscription but there's no GET params for changing payment method, the receipt page is being used to collect credit card details so we still need to $0 the total
@@ -688,8 +721,34 @@ class WC_Subscriptions_Change_Payment_Gateway {
 				$new_payment_method = wcs_get_objects_property( $renewal_order, 'payment_method' );
 			}
 
-			self::update_payment_method( $subscription, $new_payment_method );
+			// Only call update_payment_method() when the gateway has actually changed.
+			// When retrying a failed renewal with the same gateway (e.g. via the
+			// Health Check tool), calling it would produce a confusing order note
+			// ("changed from X to X") and unnecessarily cancel/re-register the
+			// subscription with the gateway.
+			//
+			// Note: this means the hooks inside update_payment_method() —
+			// woocommerce_subscriptions_pre_update_payment_method,
+			// woocommerce_subscription_payment_method_updated, and
+			// woocommerce_subscription_payment_method_updated_to_{gateway} —
+			// do not fire for same-gateway retries. No built-in integration
+			// is affected (PayPal's cancellation guard and its trigger are
+			// both inside update_payment_method, so skipping the function
+			// skips both atomically). Third-party extensions relying on
+			// these hooks for same-gateway events should use the
+			// woocommerce_subscription_failing_payment_method_updated hook
+			// below, which always fires.
+			if ( $new_payment_method !== $subscription->get_payment_method() ) {
+				self::update_payment_method( $subscription, $new_payment_method );
+			}
 
+			/**
+			 * Always fire the hooks so third-party extensions that listen for
+			 * retry-event side effects (clearing failure counters, re-registering
+			 * with external billing systems, etc.) continue to receive them.
+			 *
+			 * @since 1.0.0 - Migrated from WooCommerce Subscriptions v1.4
+			 */
 			do_action( 'woocommerce_subscription_failing_payment_method_updated', $subscription, $renewal_order );
 			do_action( 'woocommerce_subscription_failing_payment_method_updated_' . $new_payment_method, $subscription, $renewal_order );
 		}
@@ -871,11 +930,12 @@ class WC_Subscriptions_Change_Payment_Gateway {
 	/**
 	 * Update the recurring payment method on a subscription order.
 	 *
+	 * @since 1.0.0 - Migrated from WooCommerce Subscriptions v1.4
+	 * @deprecated 1.0.0 - Migrated from WooCommerce Subscriptions v2.0
+	 *
 	 * @param string $subscription_key The subscription key.
 	 * @param WC_Order $order The order.
 	 * @param string $new_payment_method The new payment method.
-	 * @since 1.0.0 - Migrated from WooCommerce Subscriptions v1.4
-	 * @deprecated 1.0.0 - Migrated from WooCommerce Subscriptions v2.0
 	 */
 	public static function update_recurring_payment_method( $subscription_key, $order, $new_payment_method ) {
 		_deprecated_function( __METHOD__, '2.0', __CLASS__ . '::update_payment_method()' );
@@ -913,6 +973,8 @@ class WC_Subscriptions_Change_Payment_Gateway {
 	 * For the recurring payment method to be changeable, the subscription must be active, have future (automatic) payments
 	 * and use a payment gateway which allows the subscription to be cancelled.
 	 *
+	 * @deprecated 2.0 Use WC_Subscriptions_Change_Payment_Gateway::can_subscription_be_updated_to_new_payment_method() instead.
+	 *
 	 * @param bool $subscription_can_be_changed Flag of whether the subscription can be changed to
 	 * @param string $new_status_or_meta The status or meta data you want to change th subscription to. Can be 'active', 'on-hold', 'cancelled', 'expired', 'trash', 'deleted', 'failed', 'new-payment-date' or some other value attached to the 'woocommerce_can_subscription_be_changed_to' filter.
 	 * @param object $args Set of values used in @see WC_Subscriptions_Manager::can_subscription_be_changed_to() for determining if a subscription can be changes, include:
@@ -938,7 +1000,6 @@ class WC_Subscriptions_Change_Payment_Gateway {
 	 * Attach WooCommerce version dependent hooks
 	 *
 	 * @since 1.0.0
-	 *
 	 * @deprecated 1.6.4
 	 */
 	public static function attach_dependant_hooks() {

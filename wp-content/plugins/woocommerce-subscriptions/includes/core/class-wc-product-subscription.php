@@ -54,7 +54,17 @@ class WC_Product_Subscription extends WC_Product_Simple {
 		$price = parent::get_price_html( $price );
 
 		if ( ! empty( $price ) ) {
-			$price = WC_Subscriptions_Product::get_price_string( $this, array( 'price' => $price ) );
+			$price_args = array( 'price' => $price );
+
+			// On the single product page and in catalog/shop loops the trial and sign-up fee are surfaced separately
+			// (as detail lines) or deliberately hidden, so omit them from the inline price string in those contexts.
+			// Every other context (REST API, widgets, mini-cart, page builders, ...) keeps the suffix.
+			if ( WC_Subscriptions_Product::should_omit_inline_trial_and_fee() ) {
+				$price_args['sign_up_fee']  = false;
+				$price_args['trial_length'] = false;
+			}
+
+			$price = WC_Subscriptions_Product::get_price_string( $this, $price_args );
 		}
 
 		return $price;
@@ -99,7 +109,7 @@ class WC_Product_Subscription extends WC_Product_Simple {
 			);
 		}
 
-		return apply_filters( 'woocommerce_product_add_to_cart_description', sprintf( $text, $this->get_name() ), $this );
+		return apply_filters( 'woocommerce_product_add_to_cart_description', $text, $this );
 	}
 
 	/**
@@ -130,6 +140,8 @@ class WC_Product_Subscription extends WC_Product_Simple {
 	/**
 	 * Return the sign-up fee for this product
 	 *
+	 * @deprecated 2.2.0 Use WC_Subscriptions_Product::get_sign_up_fee().
+	 *
 	 * @return string
 	 */
 	public function get_sign_up_fee() {
@@ -140,6 +152,7 @@ class WC_Product_Subscription extends WC_Product_Simple {
 	/**
 	 * Returns the sign up fee (including tax) by filtering the products price used in
 	 * @see WC_Product::get_price_including_tax( $qty )
+	 * @deprecated 2.3.0
 	 *
 	 * @return string
 	 */
@@ -157,6 +170,7 @@ class WC_Product_Subscription extends WC_Product_Simple {
 	/**
 	 * Returns the sign up fee (excluding tax) by filtering the products price used in
 	 * @see WC_Product::get_price_excluding_tax( $qty )
+	 * @deprecated 2.2.0
 	 *
 	 * @return string
 	 */
