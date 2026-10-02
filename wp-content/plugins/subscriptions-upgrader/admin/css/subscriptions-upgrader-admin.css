@@ -1,0 +1,18 @@
+/**
+ * All of the CSS for your admin-specific functionality should be
+ * included in this file.
+ */
+
+.subscription_upgradr_container .select2-container {
+    width: 95% !important;
+}
+#woocommerce-subscription-schedule #subscription-end-date {
+	display: none !important;
+}
+
+.widefat small.meta {
+    display: none!important;
+    color: #999;
+    font-size: inherit;
+    margin: 3px 0;
+}

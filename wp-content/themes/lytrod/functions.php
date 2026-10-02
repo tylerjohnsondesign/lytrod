@@ -253,7 +253,7 @@ function lytrod_scripts() {
 			wp_enqueue_script( 'checkoutjs',  get_template_directory_uri() . '/src/store/checkout/checkout.js', array(), '',true  );
 			wp_enqueue_style( 'checkoutsytle', get_template_directory_uri() . '/src/checkout/checkout.css', array(), '4.3.6', 'all');
 		}
-		if(is_page('demonstration-files')){
+		if(is_page('demonstration-files') || is_page('demonstration-files-backup-2')){
 			wp_enqueue_style( 'bootstrap', get_template_directory_uri() . '/src/vendor/bootstrap.min.css', array(), '4.3.1', 'all');
 			wp_enqueue_style( 'Petit', 'https://fonts.googleapis.com/css?family=Petit+Formal+Script', array(), '4.3.1', 'all');
 			wp_enqueue_style( 'Raleway', 'https://fonts.googleapis.com/css?family=Raleway', array(), '4.3.1', 'all');
@@ -544,79 +544,25 @@ if (strpos($_SERVER['HTTP_HOST'] ?? '', 'staging') !== false) {
 
 
 
-/**
- * Plugin Name: Disable Auto Subscription Payments
- * Description: Disables automatic payments for WooCommerce Subscriptions.
- * Version: 1.0
- * Author: Your Name
+/*
+ * REMOVED: disable_auto_payments_for_subscriptions() and lytrod_subscription_auto_renew_enabled().
+ *
+ * This filtered 'wcs_renewal_order_created' to blank _payment_method on every renewal
+ * order and force it back to pending, gated by options lytrod_auto_renew_all /
+ * lytrod_auto_renew_subs which were never created, so the strip always ran.
+ *
+ * It was not actually the thing preventing automatic payments: for a non-manual
+ * subscription WC_Subscriptions_Manager::process_renewal() re-applies the gateway to the
+ * renewal order immediately after wcs_create_renewal_order() returns, so the strip was
+ * undone before gateway_scheduled_subscription_payment ran at priority 10. What it did do
+ * was write a spurious status transition onto every renewal order, and leave the gateway
+ * permanently stripped on the early-renewal path, which does not re-apply it.
+ *
+ * Whether a subscription renews automatically is now decided the way WooCommerce
+ * Subscriptions intends - by the payment method and token stored on the subscription
+ * itself - rather than by a global filter and a pair of options. See the
+ * lytrod-auto-renewal plugin.
  */
-
-add_filter('wcs_renewal_order_created', 'disable_auto_payments_for_subscriptions', 10, 2);
-
-/**
- * Historically this filter stripped the gateway off EVERY renewal order, forcing
- * every subscription onto manual payment — this was the "failed auto-renewal" bug:
- * saved cards were never charged and subscriptions silently dropped to on-hold.
- *
- * It now only strips the gateway for subscriptions that are NOT enabled for real
- * automatic renewal. Enabled subs keep their gateway, so WooCommerce Subscriptions
- * fires woocommerce_scheduled_subscription_payment_{gateway} and charges the saved
- * card as intended.
- *
- * Rollout is gated by lytrod_subscription_auto_renew_enabled() (below) so this can
- * be deployed with ZERO behavior change — by default no subscription auto-renews —
- * then enabled per-subscription for a pilot and finally site-wide.
- */
-function disable_auto_payments_for_subscriptions($renewal_order, $subscription) {
-    // Auto-renewal enabled for this sub → leave the gateway intact so WCS charges it.
-    if ( function_exists( 'lytrod_subscription_auto_renew_enabled' )
-        && lytrod_subscription_auto_renew_enabled( $subscription ) ) {
-        return $renewal_order;
-    }
-
-    // Otherwise preserve the historical manual behavior: strip the gateway so the
-    // customer pays the renewal order by hand.
-    $renewal_order->set_payment_method('');
-    delete_post_meta($renewal_order->get_id(), '_payment_method');
-    delete_post_meta($renewal_order->get_id(), '_payment_method_title');
-    $renewal_order->set_status('pending');
-    $renewal_order->save();
-
-    return $renewal_order;
-}
-
-/**
- * Whether a subscription should be charged automatically on renewal.
- *
- * Controls the staged rollout of the auto-renewal fix. Order of precedence:
- *   1. Manual/PO subscriptions (_requires_manual_renewal) never auto-charge.
- *   2. Option 'lytrod_auto_renew_all' = 'yes'  → all card-backed subs auto-renew (final rollout).
- *   3. Option 'lytrod_auto_renew_subs' (CSV of subscription IDs) → pilot allowlist.
- *   4. Filter 'lytrod_subscription_auto_renew_enabled' for any custom override.
- *
- * Defaults to FALSE for everything, so deploying the code changes nothing until an
- * operator opts subscriptions in. Recommended rollout (pick a current, chargeable
- * active sub from the Phase 0 audit — e.g. #29137, source + saved token):
- *   update_option('lytrod_auto_renew_subs', '29137');   // pilot one known-good sub
- *   ...force a renewal (WP-CLI / admin "Process renewal") and verify the Stripe
- *      charge + license expiry extension, since real renewals are months out...
- *   update_option('lytrod_auto_renew_all', 'yes');       // then enable site-wide
- */
-function lytrod_subscription_auto_renew_enabled( $subscription ) {
-    $enabled = false;
-
-    if ( $subscription instanceof WC_Subscription && ! $subscription->is_manual() ) {
-        if ( 'yes' === get_option( 'lytrod_auto_renew_all' ) ) {
-            $enabled = true;
-        } else {
-            $allow = get_option( 'lytrod_auto_renew_subs', '' );
-            $ids   = array_filter( array_map( 'absint', explode( ',', (string) $allow ) ) );
-            $enabled = in_array( (int) $subscription->get_id(), $ids, true );
-        }
-    }
-
-    return (bool) apply_filters( 'lytrod_subscription_auto_renew_enabled', $enabled, $subscription );
-}
 
 // add_filter( 'woocommerce_subscriptions_is_duplicate_site', '__return_true' );
 
@@ -628,7 +574,28 @@ add_filter( 'woocommerce_add_to_cart_redirect', function( $url ) {
 
 
 
+/**
+ * Suppress admin notice clutter, but NOT on WooCommerce / Subscriptions screens.
+ *
+ * This used to remove every admin notice on every screen. That also silenced
+ * WooCommerce Subscriptions' own warnings - most importantly the failed scheduled
+ * action notice, which had been reporting 91 failed renewal payments that nobody
+ * saw. Keeping the tidy admin elsewhere is fine; hiding renewal failures is not.
+ */
 add_action('admin_init', function () {
+    $screen_id = isset($_GET['page']) ? sanitize_text_field(wp_unslash($_GET['page'])) : '';
+    $post_type = isset($_GET['post_type']) ? sanitize_text_field(wp_unslash($_GET['post_type'])) : '';
+
+    $is_woo_screen = (
+        0 === strpos($screen_id, 'wc-')
+        || 0 === strpos($screen_id, 'woocommerce')
+        || in_array($post_type, array('shop_order', 'shop_subscription', 'product'), true)
+    );
+
+    if ($is_woo_screen) {
+        return;
+    }
+
     remove_all_actions('admin_notices');
     remove_all_actions('all_admin_notices');
 });

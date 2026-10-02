@@ -37,11 +37,41 @@ class Lytrod_Emails_Scheduler {
     /**
      * How far past its window a reminder may still be sent, in days.
      *
-     * This exists only to cover a missed run. Action Scheduler makes those rare, so one day is
-     * enough — and every extra day of grace is another day on which a subscription with no
-     * dedupe marker would be mailed.
+     * Must exceed one day. Action Scheduler schedules each recurrence a day after the previous
+     * run *completed*, so runs creep later by the queue latency and are sometimes more than
+     * 24 hours apart; a window exactly one day wide lets a subscription fall between two runs
+     * and never be mailed. Two days tolerates that and one whole missed run. The dedupe marker
+     * is keyed on the renewal day, so the wider window cannot produce a second send.
      */
-    const GRACE_DAYS = 1;
+    const GRACE_DAYS = 2;
+
+    /**
+     * Hour of the day, in site time, the daily sweep should run.
+     *
+     * @var int
+     */
+    const SEND_HOUR = 8;
+
+    /**
+     * How far the scheduled run may slip from SEND_HOUR before it is re-anchored, in seconds.
+     *
+     * @var int
+     */
+    const DRIFT_TOLERANCE = 300;
+
+    /**
+     * Ended email confirmation hook.
+     */
+    const ENDED_HOOK = 'lytrod_emails_confirm_ended';
+
+    /**
+     * How long after a subscription goes on-hold to wait before telling the customer it ended.
+     *
+     * WooCommerce Subscriptions puts every subscription on-hold *before* the gateway charges it
+     * (`prepare_renewal()` at priority 1, the charge at priority 10), so an on-hold transition
+     * alone says nothing about whether the licence actually lapsed.
+     */
+    const ENDED_DELAY = HOUR_IN_SECONDS;
 
     /**
      * Ceiling on how many subscriptions one sweep will load.
@@ -61,9 +91,15 @@ class Lytrod_Emails_Scheduler {
         add_action( self::HOOK, array( __CLASS__, 'run' ) );
         add_action( 'init', array( __CLASS__, 'maybe_schedule' ), 20 );
 
-        // The ended email rides the transitions that actually cost the customer access.
-        add_action( 'woocommerce_subscription_status_active_to_on-hold', array( __CLASS__, 'maybe_send_ended' ), 10, 1 );
+        /*
+         * The ended email rides the transitions that actually cost the customer access. On-hold
+         * is only confirmed later, because every renewal passes through it — including ones the
+         * saved card is about to pay. Expired is final, so it sends straight away.
+         */
+        add_action( 'woocommerce_subscription_status_active_to_on-hold', array( __CLASS__, 'queue_ended' ), 10, 1 );
         add_action( 'woocommerce_subscription_status_active_to_expired', array( __CLASS__, 'maybe_send_ended' ), 10, 1 );
+        add_action( self::ENDED_HOOK, array( __CLASS__, 'confirm_ended' ), 10, 1 );
+        add_action( 'woocommerce_subscription_status_active', array( __CLASS__, 'clear_ended_state' ), 10, 1 );
 
         // Ours replaces both of WooCommerce Subscriptions' own endings, but only once it is live.
         add_filter( 'woocommerce_email_enabled_customer_on_hold_subscription', array( __CLASS__, 'suppress_wcs_ending' ), 20 );
@@ -95,11 +131,43 @@ class Lytrod_Emails_Scheduler {
             return;
         }
 
-        if ( as_next_scheduled_action( self::HOOK, null, self::GROUP ) ) {
-            return;
+        $next = as_next_scheduled_action( self::HOOK, null, self::GROUP );
+
+        if ( $next ) {
+            if ( ! self::has_drifted( $next ) ) {
+                return;
+            }
+
+            // as_schedule_recurring_action() measures the interval from when the previous
+            // occurrence finished, not from a fixed clock time. A sweep that starts a couple
+            // of minutes late therefore pushes the next one later still, and the send hour
+            // creeps forward indefinitely - observed at roughly 3.5 minutes a day, which walks
+            // an 08:00 reminder into the afternoon over a year. Re-anchor instead.
+            if ( function_exists( 'as_unschedule_all_actions' ) ) {
+                as_unschedule_all_actions( self::HOOK, null, self::GROUP );
+            }
         }
 
         as_schedule_recurring_action( self::next_run_timestamp(), DAY_IN_SECONDS, self::HOOK, array(), self::GROUP );
+    }
+
+    /**
+     * Whether the next scheduled sweep has slipped away from SEND_HOUR.
+     *
+     * @param int|bool $next Timestamp of the next scheduled action, as returned by
+     *                       as_next_scheduled_action(). `true` means scheduled but with no
+     *                       usable timestamp, in which case we leave it alone.
+     * @return bool
+     */
+    private static function has_drifted( $next ): bool {
+        if ( ! is_numeric( $next ) ) {
+            return false;
+        }
+
+        $scheduled = ( new DateTimeImmutable( '@' . (int) $next ) )->setTimezone( wp_timezone() );
+        $anchor    = $scheduled->setTime( self::SEND_HOUR, 0, 0 );
+
+        return abs( $scheduled->getTimestamp() - $anchor->getTimestamp() ) > self::DRIFT_TOLERANCE;
     }
 
     /**
@@ -113,7 +181,7 @@ class Lytrod_Emails_Scheduler {
     private static function next_run_timestamp(): int {
         $tz  = wp_timezone();
         $now = new DateTimeImmutable( 'now', $tz );
-        $run = $now->setTime( 8, 0, 0 );
+        $run = $now->setTime( self::SEND_HOUR, 0, 0 );
 
         if ( $run <= $now ) {
             $run = $run->modify( '+1 day' );
@@ -223,6 +291,20 @@ class Lytrod_Emails_Scheduler {
     }
 
     /**
+     * Make sure the email classes are loaded.
+     *
+     * They are only required when WooCommerce builds its mailer, and nothing builds it during a
+     * bare cron request — so the sweep, which reaches for their static helpers before it ever
+     * asks for an email, died with "class not found" on every run. The mailer is a singleton,
+     * so calling this repeatedly costs nothing.
+     *
+     * @return void
+     */
+    private static function load_email_classes(): void {
+        WC()->mailer();
+    }
+
+    /**
      * The dedupe marker for one window.
      *
      * @param int $days Window.
@@ -243,6 +325,8 @@ class Lytrod_Emails_Scheduler {
      * @return int
      */
     public static function window_for( $subscription ): int {
+        self::load_email_classes();
+
         $type = Lytrod_Emails_Subscription_Email::renewal_date_type( $subscription );
 
         if ( '' === $type ) {
@@ -354,6 +438,8 @@ class Lytrod_Emails_Scheduler {
      * @return array|null {window, class, email, renewal_day, already} or null when nothing is due.
      */
     public static function plan_for( $subscription ): ?array {
+        self::load_email_classes();
+
         $window = self::window_for( $subscription );
 
         if ( ! $window ) {
@@ -488,7 +574,107 @@ class Lytrod_Emails_Scheduler {
     }
 
     /**
-     * Send the ended email on a status transition.
+     * Queue a check on whether an on-hold subscription has really ended.
+     *
+     * Sending here directly told customers their licence had ended seconds before their saved
+     * card renewed it — and some of them then resubscribed and paid twice. Instead, look again
+     * once the renewal has had time to go through.
+     *
+     * @param WC_Subscription $subscription Subscription.
+     * @return void
+     */
+    public static function queue_ended( $subscription ): void {
+        if ( ! $subscription instanceof WC_Subscription || ! function_exists( 'as_schedule_single_action' ) ) {
+            return;
+        }
+
+        self::load_email_classes();
+
+        if ( Lytrod_Emails_License_Ended::already_notified( $subscription ) ) {
+            return;
+        }
+
+        $args = array( 'subscription_id' => $subscription->get_id() );
+
+        if ( as_has_scheduled_action( self::ENDED_HOOK, $args, self::GROUP ) ) {
+            return;
+        }
+
+        /**
+         * Filter how long to wait after a subscription goes on-hold before sending the ended email.
+         *
+         * @since 1.1.1
+         * @param int             $delay        Seconds.
+         * @param WC_Subscription $subscription Subscription.
+         */
+        $delay = max( 0, (int) apply_filters( 'lytrod_emails_ended_delay', self::ENDED_DELAY, $subscription ) );
+
+        as_schedule_single_action( time() + $delay, self::ENDED_HOOK, $args, self::GROUP );
+    }
+
+    /**
+     * Send the ended email if the subscription is still lapsed.
+     *
+     * @param int $subscription_id Subscription id.
+     * @return void
+     */
+    public static function confirm_ended( $subscription_id ): void {
+        $subscription = function_exists( 'wcs_get_subscription' ) ? wcs_get_subscription( (int) $subscription_id ) : false;
+
+        if ( ! $subscription instanceof WC_Subscription ) {
+            return;
+        }
+
+        if ( ! $subscription->has_status( array( 'on-hold', 'expired' ) ) ) {
+            self::log( sprintf( 'Ended email skipped for subscription #%d: it is %s again.', $subscription->get_id(), $subscription->get_status() ) );
+
+            return;
+        }
+
+        $replaced_by = (int) $subscription->get_meta( 'replaced_by_subscription_id', true );
+
+        if ( $replaced_by ) {
+            self::log( sprintf( 'Ended email skipped for subscription #%d: replaced by #%d.', $subscription->get_id(), $replaced_by ) );
+
+            return;
+        }
+
+        self::maybe_send_ended( $subscription );
+    }
+
+    /**
+     * Forget a previous ending once the subscription is active again.
+     *
+     * The ended marker used to be permanent, so a subscription that lapsed once could never be
+     * told about a later, genuine lapse. Also drops any pending check, since there is nothing
+     * left for it to confirm.
+     *
+     * @param WC_Subscription $subscription Subscription.
+     * @return void
+     */
+    public static function clear_ended_state( $subscription ): void {
+        if ( ! $subscription instanceof WC_Subscription ) {
+            return;
+        }
+
+        if ( function_exists( 'as_unschedule_all_actions' ) ) {
+            as_unschedule_all_actions( self::ENDED_HOOK, array( 'subscription_id' => $subscription->get_id() ), self::GROUP );
+        }
+
+        // Runs mid-renewal, from cron, where the email classes are not otherwise loaded.
+        self::load_email_classes();
+
+        if ( ! Lytrod_Emails_License_Ended::already_notified( $subscription ) ) {
+            return;
+        }
+
+        $subscription->delete_meta_data( Lytrod_Emails_License_Ended::META_SENT );
+        $subscription->delete_meta_data( Lytrod_Emails_License_Ended::META_SENT_LEGACY );
+        $subscription->save_meta_data();
+    }
+
+    /**
+     * Send the ended email.
      *
      * @param WC_Subscription $subscription Subscription.
      * @return void
