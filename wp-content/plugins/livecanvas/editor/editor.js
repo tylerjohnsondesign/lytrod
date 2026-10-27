@@ -667,8 +667,11 @@ $(document).ready(function ($) {
         $("body").addClass("lc-bottom-editor-is-shown");
         $("#toggle-code-editor").addClass("is-active");
         const loadedAceScript = popout.document.querySelector('script[src]');
-        loadedAceScript.addEventListener("load", function () {
+        let codeEditorPopoutInitialized = false;
+        function initializeCodeEditorPopout() {
+            if (codeEditorPopoutInitialized) return;
             if (!codeEditorPopout || codeEditorPopout !== popout) return;
+            codeEditorPopoutInitialized = true;
             const sourceEditors = [lc_html_editor, lc_css_editor, lc_js_editor];
             const names = ["html", "css", "js"];
             let synchronizing = false;
@@ -829,11 +832,16 @@ $(document).ready(function ($) {
                 popupDocument.getElementById("lc-code-editor-winbox").classList.toggle("lc-opacity-light", popupTransparency.checked);
             });
             popupEditors[0].focus();
-        });
+        }
+        loadedAceScript.addEventListener("load", initializeCodeEditorPopout);
         loadedAceScript.addEventListener("error", function () {
             restoreCodeEditorFromPopout(false);
             showCodeEditorPopoutMessage("The pop-out editor could not be loaded. Please try again.");
         });
+        // document.close() may finish a cached Ace request before the load
+        // listener above is attached. In that case the library is already
+        // available and the popup must be initialized explicitly.
+        if (popout.ace) initializeCodeEditorPopout();
     }
 
     window.closeCodeEditorWindow = function () {

@@ -28,7 +28,41 @@ class LAR_License {
 	const GUARD_META = '_lar_license_extended_order';
 
 	public static function init() {
+		// Primary: fires inside WC_Order::payment_complete() BEFORE set_status()/save(),
+		// so the dates are already correct when the status transition sends the invoice.
+		add_action( 'woocommerce_pre_payment_complete', array( __CLASS__, 'extend_before_payment_complete' ), 10, 1 );
+
+		// Fallback for any path that completes a renewal without going through
+		// WC_Order::payment_complete(). The _lar_license_extended_order guard makes
+		// running both harmless.
 		add_action( 'woocommerce_subscription_renewal_payment_complete', array( __CLASS__, 'extend_on_renewal' ), 10, 2 );
+	}
+
+	/**
+	 * Extend the licence before the renewal order's status transition.
+	 *
+	 * The invoice email is sent from that transition, two do_action() calls before
+	 * woocommerce_subscription_renewal_payment_complete. Hooked only to the latter,
+	 * the extension ran after the email had already been rendered, so the invoice
+	 * always showed the pre-renewal expiry and a coverage period a year out of date.
+	 *
+	 * @param int $order_id Order being completed.
+	 * @return void
+	 */
+	public static function extend_before_payment_complete( $order_id ) {
+		if ( ! function_exists( 'wcs_order_contains_renewal' ) || ! wcs_order_contains_renewal( $order_id ) ) {
+			return;
+		}
+
+		$order = wc_get_order( $order_id );
+
+		if ( ! $order ) {
+			return;
+		}
+
+		foreach ( wcs_get_subscriptions_for_renewal_order( $order ) as $subscription ) {
+			self::extend_on_renewal( $subscription, $order );
+		}
 	}
 
 	/**
@@ -99,6 +133,27 @@ class LAR_License {
 
 		$subscription->update_meta_data( self::GUARD_META, $order_id );
 		$subscription->save();
+
+		// The invoice template reads the subscription's next_payment, not our custom
+		// meta (Lytrod_Emails_Content::expiry_info() documents why). WooCommerce
+		// Subscriptions only advances next_payment later, inside update_status('active'),
+		// so without this the email still prints the old date. Safe against double
+		// advancing: WCS recalculates only when the stored date is less than ~2 hours
+		// away, and this one is a full billing period out.
+		if ( is_callable( array( $subscription, 'update_dates' ) ) ) {
+			try {
+				$subscription->update_dates( array( 'next_payment' => $expiration_formatted ) );
+			} catch ( Exception $e ) {
+				$subscription->add_order_note( 'Could not advance next payment date: ' . $e->getMessage() );
+			}
+		}
+
+		// Refresh the copy WooCommerce Subscriptions froze onto the renewal order when
+		// it was created, so the order record stops contradicting the subscription.
+		$last_order->update_meta_data( 'expiration_date', $expiration_formatted );
+		$last_order->update_meta_data( 'calculated_end_date', $end_date->format( 'Y-m-d H:i:s' ) );
+		$last_order->update_meta_data( '_custom_expiration_date', $expiration->format( $custom_format ) );
+		$last_order->save();
 
 		$subscription->add_order_note(
 			sprintf(

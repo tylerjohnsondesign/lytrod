@@ -18,6 +18,8 @@ define( 'LAR_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 
 require_once LAR_PLUGIN_DIR . 'includes/class-lar-license.php';
 require_once LAR_PLUGIN_DIR . 'includes/class-lar-token-sync.php';
+require_once LAR_PLUGIN_DIR . 'includes/class-lar-switch-pricing.php';
+require_once LAR_PLUGIN_DIR . 'includes/class-lar-switch-variations.php';
 
 /**
  * Initialise once WooCommerce & Subscriptions are loaded.
@@ -37,6 +39,8 @@ add_action(
 
 		LAR_License::init();
 		LAR_Token_Sync::init();
+		LAR_Switch_Pricing::init();
+		LAR_Switch_Variations::init();
 
 		if ( defined( 'WP_CLI' ) && WP_CLI ) {
 			require_once LAR_PLUGIN_DIR . 'includes/class-lar-cli.php';

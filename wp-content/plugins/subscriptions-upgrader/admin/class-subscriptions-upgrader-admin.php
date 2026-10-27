@@ -1661,6 +1661,7 @@ function display_subscription_renewal_orders($post) {
 					method: 'POST',
 					data: {
 						action: 'add_related_order',
+						_ajax_nonce: '<?php echo esc_js(wp_create_nonce('lytrod_add_related_order')); ?>',
 						subscription_id: subscription_id,
 						order_id: order_id,
 						related_order_id: related_order_id
@@ -1681,6 +1682,12 @@ function display_subscription_renewal_orders($post) {
 }
 
 function handle_add_related_order() {
+    // Admin meta-box action: any logged-in user can reach admin-ajax.php, so check both.
+    check_ajax_referer('lytrod_add_related_order');
+    if (!current_user_can('edit_shop_orders')) {
+        wp_die(-1, 403);
+    }
+
     $subscription_id = isset($_POST['subscription_id']) ? absint($_POST['subscription_id']) : 0;
     $order_id = isset($_POST['order_id']) ? absint($_POST['order_id']) : 0;
     $related_order_id = isset($_POST['related_order_id']) ? absint($_POST['related_order_id']) : 0;

@@ -2,7 +2,7 @@
 /*
 Plugin Name: LiveCanvas
 Description: Build better Web pages. An awesome live HTML editor focused on speed and code quality.
-Version: 4.9.4
+Version: 4.9.5
 Author: The LiveCanvas Team
 Author URI: https://www.livecanvas.com
 */
@@ -11,7 +11,7 @@ Author URI: https://www.livecanvas.com
 defined( 'ABSPATH' ) || exit;
 
 //DEFINE SCRIPTS VERSION
-if (strpos($_SERVER['REQUEST_URI'], '/livecanvas-dev/') !== false)	define("LC_SCRIPTS_VERSION", rand(0, 1000)); else define("LC_SCRIPTS_VERSION", "4.9.4");
+if (strpos($_SERVER['REQUEST_URI'], '/livecanvas-dev/') !== false)	define("LC_SCRIPTS_VERSION", rand(0, 1000)); else define("LC_SCRIPTS_VERSION", "4.9.5");
 
 if (!defined('DS')) {
 	define('DS', DIRECTORY_SEPARATOR);

@@ -47,25 +47,8 @@ function check_page() {
                 ),
             );
 			
-			$show_checkbox = false;
-
-			if (is_user_logged_in()) {
-				// Check if current user is admin
-				if (current_user_can('administrator')) {
-					$show_checkbox = true;
-				}
-
-				// Check if switched from admin using User Switching plugin
-				if (function_exists('current_user_switched') && current_user_switched()) {
-					$old_user = current_user_switched();
-					if ($old_user && user_can($old_user->ID, 'administrator')) {
-						$show_checkbox = true;
-					}
-				}
-			}
-			
 			// Add admin-only checkbox
-			if ($show_checkbox) {
+			if (lytrod_can_suppress_order_emails()) {
 				$custom_fields['do_not_send_email'] = array(
 					'type' => 'checkbox',
 					'label' => __('Do not send email', 'woocommerce'),
@@ -140,25 +123,8 @@ function check_page() {
 //                 ),
             );
 			
-			$show_checkbox = false;
-
-			if (is_user_logged_in()) {
-				// Check if current user is admin
-				if (current_user_can('administrator')) {
-					$show_checkbox = true;
-				}
-
-				// Check if switched from admin using User Switching plugin
-				if (function_exists('current_user_switched') && current_user_switched()) {
-					$old_user = current_user_switched();
-					if ($old_user && user_can($old_user->ID, 'administrator')) {
-						$show_checkbox = true;
-					}
-				}
-			}
-			
 			// Add admin-only checkbox
-			if ($show_checkbox) {
+			if (lytrod_can_suppress_order_emails()) {
 				$custom_fields['do_not_send_email'] = array(
 					'type' => 'checkbox',
 					'label' => __('Do not send email', 'woocommerce'),
@@ -248,25 +214,8 @@ function check_page() {
                 ),
             );
 			
-			$show_checkbox = false;
-
-			if (is_user_logged_in()) {
-				// Check if current user is admin
-				if (current_user_can('administrator')) {
-					$show_checkbox = true;
-				}
-
-				// Check if switched from admin using User Switching plugin
-				if (function_exists('current_user_switched') && current_user_switched()) {
-					$old_user = current_user_switched();
-					if ($old_user && user_can($old_user->ID, 'administrator')) {
-						$show_checkbox = true;
-					}
-				}
-			}
-			
 			// Add admin-only checkbox
-			if ($show_checkbox) {
+			if (lytrod_can_suppress_order_emails()) {
 				$custom_fields['do_not_send_email'] = array(
 					'type' => 'checkbox',
 					'label' => __('Do not send email', 'woocommerce'),
@@ -324,25 +273,8 @@ function check_page() {
                 ),
             );
 			
-			$show_checkbox = false;
-
-			if (is_user_logged_in()) {
-				// Check if current user is admin
-				if (current_user_can('administrator')) {
-					$show_checkbox = true;
-				}
-
-				// Check if switched from admin using User Switching plugin
-				if (function_exists('current_user_switched') && current_user_switched()) {
-					$old_user = current_user_switched();
-					if ($old_user && user_can($old_user->ID, 'administrator')) {
-						$show_checkbox = true;
-					}
-				}
-			}
-			
 			// Add admin-only checkbox
-			if ($show_checkbox) {
+			if (lytrod_can_suppress_order_emails()) {
 				$custom_fields['do_not_send_email'] = array(
 					'type' => 'checkbox',
 					'label' => __('Do not send email', 'woocommerce'),
@@ -398,25 +330,8 @@ function check_page() {
                 ),
             );
 			
-			$show_checkbox = false;
-
-			if (is_user_logged_in()) {
-				// Check if current user is admin
-				if (current_user_can('administrator')) {
-					$show_checkbox = true;
-				}
-
-				// Check if switched from admin using User Switching plugin
-				if (function_exists('current_user_switched') && current_user_switched()) {
-					$old_user = current_user_switched();
-					if ($old_user && user_can($old_user->ID, 'administrator')) {
-						$show_checkbox = true;
-					}
-				}
-			}
-			
 			// Add admin-only checkbox
-			if ($show_checkbox) {
+			if (lytrod_can_suppress_order_emails()) {
 				$custom_fields['do_not_send_email'] = array(
 					'type' => 'checkbox',
 					'label' => __('Do not send email', 'woocommerce'),
@@ -462,24 +377,8 @@ function check_page() {
 				
             );
 			
-			$show_checkbox = false;
-
-			if (is_user_logged_in()) {
-				// Check if current user is admin
-				if (current_user_can('administrator')) {
-					$show_checkbox = true;
-				}
-
-				// Check if switched from admin using User Switching plugin
-				if (function_exists('current_user_switched') && current_user_switched()) {
-					$old_user = current_user_switched();
-					if ($old_user && user_can($old_user->ID, 'administrator')) {
-						$show_checkbox = true;
-					}
-				}
-			}
 			// Add admin-only checkbox
-			if ($show_checkbox) {
+			if (lytrod_can_suppress_order_emails()) {
 				$custom_fields['do_not_send_email'] = array(
 					'type' => 'checkbox',
 					'label' => __('Do not send email', 'woocommerce'),
@@ -1064,8 +963,27 @@ add_filter( 'woocommerce_cart_needs_payment', function( $needs_payment, $cart ) 
     return $needs_payment;
 }, 10, 2 );
 
+/**
+ * Whether the current shopper may silence order emails: an administrator, or an administrator
+ * placing the order while switched into a customer's account via User Switching.
+ */
+function lytrod_can_suppress_order_emails() {
+	if (!is_user_logged_in()) {
+		return false;
+	}
+
+	if (current_user_can('administrator')) {
+		return true;
+	}
+
+	$old_user = function_exists('current_user_switched') ? current_user_switched() : false;
+
+	return $old_user && user_can($old_user->ID, 'administrator');
+}
+
 add_action('woocommerce_checkout_create_order', function($order, $data) {
-	if (!empty($_POST['do_not_send_email'])) {
+	// Only the checkbox's visibility was admin-only; any shopper could post the field.
+	if (!empty($_POST['do_not_send_email']) && lytrod_can_suppress_order_emails()) {
 		$order->update_meta_data('_do_not_send_email', 'yes');
 	}
 }, 10, 2);

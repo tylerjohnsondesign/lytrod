@@ -179,13 +179,18 @@ if ( !class_exists('Puc_v4p11_StateStore', false) ):
 
 				$updateClass = null;
 				if ( isset($state->updateBaseClass) ) {
-					$updateClass = $this->getLibPrefix() . $state->updateBaseClass;
+					//PUC 5 uses namespaces (for example, "Plugin\\Update") while
+					//PUC 4 uses underscores ("Plugin_Update"). This state can be
+					//left in the database after rolling back to a legacy release.
+					$updateBaseClass = str_replace('\\', '_', ltrim($state->updateBaseClass, '\\'));
+					$updateClass = $this->getLibPrefix() . $updateBaseClass;
 				} else if ( isset($state->updateClass) && class_exists($state->updateClass) ) {
 					$updateClass = $state->updateClass;
 				}
 
-				if ( $updateClass !== null ) {
-					$this->update = call_user_func(array($updateClass, 'fromObject'), $state->update);
+				$factory = array($updateClass, 'fromObject');
+				if ( ($updateClass !== null) && is_callable($factory) ) {
+					$this->update = call_user_func($factory, $state->update);
 				}
 			}
 		}

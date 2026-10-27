@@ -139,17 +139,7 @@ class NF_Fields_Repeater extends NF_Abstracts_Field
                 $default_value = preg_replace( '/{[^}]}/', '', $default_value );
 
                 if ($default_value) {
-                    $field['value'] = $default_value;
-
-                    if( ! is_array( $default_value ) ) {
-                        ob_start();
-                        do_shortcode( $field['value'] );
-                        $ob = ob_get_clean();
-
-                        if( ! $ob ) {
-                            $field['value'] = do_shortcode( $field['value'] );
-                        }
-                    }
+                    $field['value'] = WPN_Helper::process_default_value_shortcodes( $default_value );
                 }
             }
 
@@ -176,13 +166,28 @@ class NF_Fields_Repeater extends NF_Abstracts_Field
 
         foreach($extractedSubmissionData as $index=> $indexedSubmission){
             $return .= '<br /><span style="font-weight:bold;">Repeated Fieldset #' . esc_html( (string) $index ) . '</span><br />';
-            foreach($indexedSubmission as $submissionValueArray){
+            foreach($indexedSubmission as $fieldsetFieldId => $submissionValueArray){
                 $fieldsetFieldSubmissionValue = $submissionValueArray['value'];
+
+                /*
+                 * A date field's submission is stored as separate
+                 * date/hour/minute/ampm parts. Combine them the way the
+                 * submissions screen, email notifications and the CSV export
+                 * already do, so this screen reads the same as the rest.
+                 * Joining the raw parts with commas surfaced a Time Only
+                 * field as '02:15 pm, 02, 15, pm'. See issue #7353.
+                 */
+                $fieldsetFieldSubmissionValue = Ninja_Forms()->fieldsetRepeater->formatFieldsetFieldValue(
+                    $fieldsetFieldId,
+                    $fieldsetFieldSubmissionValue,
+                    isset($submissionValueArray['type']) ? $submissionValueArray['type'] : '',
+                    $fieldSettings
+                );
 
                 if(is_array($fieldsetFieldSubmissionValue)){
                     $fieldsetFieldSubmissionValue=implode(', ',$fieldsetFieldSubmissionValue);
                 }
-                $return.='<span>'.$submissionValueArray['label'].' </span><input class="widefat" name="fields[' . absint( $id ) . ']" disabled = "disabled" value="' . esc_attr( $fieldsetFieldSubmissionValue ) . '" type="text" />';
+                $return.='<span>' . esc_html( $submissionValueArray['label'] ) . ' </span><input class="widefat" name="fields[' . absint( $id ) . ']" disabled = "disabled" value="' . esc_attr( $fieldsetFieldSubmissionValue ) . '" type="text" />';
             }
 
         }

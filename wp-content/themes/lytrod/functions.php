@@ -244,7 +244,7 @@ function lytrod_scripts() {
 			wp_enqueue_script( 'swipermin', get_template_directory_uri() . '/src/vendor/swiper.min.js' , array(), '',true  );
 			wp_enqueue_script( 'fullpagemin', get_template_directory_uri() . '/src/vendor/fullpage.min.js' , array(), '',true  );
 			
-			wp_enqueue_script( 'appjs',  get_template_directory_uri() . '/src/videolearning/app.js', array(),'',true);
+			wp_enqueue_script( 'appjs',  get_template_directory_uri() . '/src/videolearning/app.js?v=14', array(),'',true);
 			wp_enqueue_script( 'swiperappjs',  get_template_directory_uri() . '/src/videolearning/swiperapp.js', array(),'',true);
 			// wp_enqueue_script( 'theswiper', '/wp-content/themes/astra-child/assets/learning_guide/js/swiper.js', array(), '',true  );        
        }

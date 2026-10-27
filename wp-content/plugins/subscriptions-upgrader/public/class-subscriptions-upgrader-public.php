@@ -651,6 +651,12 @@ class Subscriptions_Upgrader_Public {
 			}
 		}
 
+		// Every source above is shopper-controlled; only honour the customer's own subscription.
+		if ($is_resubscribe && !lytrod_user_owns_subscription($old_subscription_id)) {
+			$is_resubscribe = false;
+			$old_subscription_id = null;
+		}
+
 		// Get variation_id from cart items first (works for both resubscribe and switch)
 		$variation_id = 0;
 		foreach (WC()->cart->get_cart() as $cart_item) {
@@ -1380,77 +1386,15 @@ function get_last_order_product_or_variation_id($subscription_id) {
 
 
 
-function custom_hide_unavailable_variations() {
-    global $post;
-	
-	$user_id = get_current_user_id();
-	$switch_subscription_id = isset($_GET['switch-subscription']) ? $_GET['switch-subscription'] : '';
-	$last_product_or_variation_id = '';
-
-	if (!empty($switch_subscription_id) && is_numeric($switch_subscription_id)) {
-		$last_product_or_variation_id = get_last_order_product_or_variation_id($switch_subscription_id);
-	}
-
-	$custom_variation_ids = isset($_GET['variation_id']) ? explode(',', $_GET['variation_id']) : [];
-
-// 	if ($last_product_or_variation_id && !empty($custom_variation_ids)) {
-// 		$custom_variation_ids = array_diff($custom_variation_ids, [$last_product_or_variation_id]);
-// 	}
-	
-	if($custom_variation_ids) {
-		$variation_data = [];
-		foreach ($custom_variation_ids as $variation_id) {
-			$variation = wc_get_product($variation_id);
-			
-			if ($variation && $variation instanceof WC_Product_Variation) {
-				$attributes = $variation->get_attributes();
-				$variation_data[] = [
-					'id' => $variation_id,
-					'attributes' => $attributes
-				];
-			}
-		}
-
-		if (is_product()) { ?>
-			<script type="text/javascript">
-				jQuery(function($) {
-					var custom_variation_data = <?php echo json_encode($variation_data); ?>;
-					jQuery(function($) {
-						$('form.variations_form').each(function() {
-							var $form = $(this);
-							var $variationSelects = $form.find('select');
-							$variationSelects.each(function() {
-								var $select = $(this);
-								$select.find('option').each(function() {
-									var optionValue = $(this).val();
-									var showOption = false; 
-									$.each(custom_variation_data, function(i, variation) {
-										$.each(variation.attributes, function(attributeName, attributeValue) {
-											if (optionValue === attributeValue) {
-												showOption = true;
-												return false;
-											}
-										});
-
-										if (showOption) {
-											return false;
-										}
-									});
-									if (showOption) {
-										$(this).show().removeAttr('style');
-									} else {
-										$(this).hide();
-									}
-								});
-							});
-						});
-					});
-				});
-			</script>
-		<?php }
-	}
-}
-add_action('wp_footer', 'custom_hide_unavailable_variations');
+/*
+ * REMOVED: custom_hide_unavailable_variations().
+ *
+ * Hid disallowed <option> elements in the browser with $(option).hide(). That raced
+ * WooCommerce's own variations_form script, which re-renders the options and undoes the
+ * hiding, and it is ignored outright in Safari. The allowlist is now applied server-side
+ * in LAR_Switch_Variations (lytrod-auto-renewal) so the disallowed variations are never
+ * rendered in the first place.
+ */
 
 
 add_filter('woocommerce_locate_template', 'custom_woocommerce_email_template', 10, 3);
@@ -1938,9 +1882,22 @@ add_action('woocommerce_remove_cart_item', function($cart_item_key, $cart) {
 function apply_prorated_upgrade_fee_on_plus_variation($cart_item_data, $product_id, $variation_id) {
     if (!$variation_id) return $cart_item_data;
 
-    // Get the variation product
+    // Prorate only a genuine Base -> Plus tier change. This used to test the variation's
+    // `choose` attribute for the exact string 'Upgrade to Plus', which missed the Plus
+    // multi-year variations ("Intellicut Plus 3 Years" and friends) and so prorated them
+    // for customers who were already on Plus - i.e. adding years at their current tier,
+    // which is full price. Shares LAR_Switch_Pricing's predicate so this function and the
+    // switch-engine filters can never disagree about what counts as an upgrade.
+    $switch_subscription_id_for_tier = isset($_GET['switch-subscription']) ? intval($_GET['switch-subscription']) : 0;
+
+    if (!class_exists('LAR_Switch_Pricing')
+        || !$switch_subscription_id_for_tier
+        || !LAR_Switch_Pricing::is_tier_upgrade(wcs_get_subscription($switch_subscription_id_for_tier), $variation_id)) {
+        return $cart_item_data;
+    }
+
     $variation_product = wc_get_product($variation_id);
-    if (!$variation_product || $variation_product->get_attribute('choose') !== 'Upgrade to Plus') {
+    if (!$variation_product) {
         return $cart_item_data;
     }
 	
@@ -2035,71 +1992,21 @@ function apply_prorated_upgrade_fee_on_plus_variation($cart_item_data, $product_
 	$varaition_id = isset($_GET['variation_id']) ? $_GET['variation_id'] : $variationid;
 	$subscription_price = get_post_meta($varaition_id, '_subscription_price', true);
 	
-	if($subscription_signup_fee == 0 && $remaining_days > 365) {
-		
-		$now_date = new DateTime(); // Current date
-		$next_payment_date_obj = new DateTime($next_payment_date); // Subscription expiry or next payment date
+	// Single rule for every product: the customer pays the per-year Plus uplift for
+	// the time they will actually have Plus. Shared with LAR_Switch_Pricing so the
+	// figure shown in the cart and the figure charged cannot diverge.
+	//
+	// The three branches this replaces were wrong whenever more than a year remained:
+	// the denominator was the whole (possibly multi-year) billing period rather than a
+	// year, and the result was capped at a single year's uplift. Which branch ran
+	// depended on the CURRENT variation's sign-up fee, so the same operation priced
+	// differently per product - BizcardCut quoted $39.45 against a correct $79.20.
+	if ( class_exists( 'LAR_Switch_Pricing' ) ) {
+		$prorated_fee = LAR_Switch_Pricing::plus_prorated_fee( $subscription, $variation_id );
 
-		if ($next_payment_date_obj > $now_date) {
-			$interval = $now_date->diff($next_payment_date_obj);
-			// Convert to decimal years
-			$years = $interval->y;
-			$months = $interval->m;
-			$days = $interval->d;
-
-			$prorated_years = $years + ($months / 12) + ($days / 365); // Accurate fraction
-			// Calculate prorated fee
-			$prorated_fee = $prorated_years * $full_upgrade_fee;
-			$prorated_fee = round($prorated_fee, 2); // or round to 0 if whole number preferred
-
-			$cart_item_data['custom_prorated_fee'] = $prorated_fee;
+		if ( null !== $prorated_fee ) {
+			$cart_item_data['custom_prorated_fee'] = (float) $prorated_fee;
 		}
-		
-	} else if ($subscription_signup_fee == 0 && $signup && $trial_start_date && $trial_end_date && strtotime($next_payment_date) > $now ) {
-		// Clean trial start/end dates
-		$start_date_only = date('Y-m-d', strtotime($trial_start_date));
-		$end_date_only = date('Y-m-d', strtotime($trial_end_date));
-
-		$start_timestamp = strtotime($start_date_only);
-		$end_timestamp = strtotime($end_date_only);
-
-		// Days in trial and remaining
-		$total_trial_days = round(($end_timestamp - $start_timestamp) / (60 * 60 * 24));
-		$remaining_trial_days = max(0, round(($end_timestamp - $now) / (60 * 60 * 24)));
-
-		// Days to next billing date
-		$next_payment_timestamp = strtotime($next_payment_date);
-		$remaining_days_to_next_payment = max(0, round(($next_payment_timestamp - $now) / (60 * 60 * 24)));
-
-		// Remaining percentage
-		$remaining_percentage = ($total_trial_days > 0)
-			? ($remaining_days_to_next_payment / $total_trial_days) * 100
-			: 0;
-		$remaining_percentage = round($remaining_percentage);
-		// Prorated cost
-		$prorated_fee = round(($remaining_percentage / 100) * $full_upgrade_fee, 0);
-		$prorated_fee = min($prorated_fee, $full_upgrade_fee);
-
-		$cart_item_data['custom_prorated_fee'] = $prorated_fee;
-
-	} else {
-		// If no trial
-		// if ($years_to_add > 0) {
-		// 	$extra_fee_for_years = $full_upgrade_fee * $years_to_add;
-		// 	$prorated_fee = $full_upgrade_fee + $extra_fee_for_years;
-		// } else {
-		// 	$prorated_fee = $full_upgrade_fee + $sub_upgrade_fee;
-		// }
-
-        if ($remaining_days > 0 && $total_billing_days > 0 ) {
-			$prorated_fee = ($remaining_days / $total_billing_days) * $full_upgrade_fee;
-			$prorated_fee = round($prorated_fee, 2);
-			$prorated_fee = min($prorated_fee, $full_upgrade_fee); // cap at full fee
-		} else {
-			$prorated_fee = $full_upgrade_fee;
-		}
-	
-		$cart_item_data['custom_prorated_fee'] = floatval($prorated_fee);
 	}
 
 	// Always include next year's subscription cost
@@ -2139,6 +2046,11 @@ function handle_year_variation_resubscribe_pricing($cart_item_data, $product_id,
     
     if (!$resubscribe_subscription_id) {
         return $cart_item_data; // Not a resubscribe
+    }
+
+    // Price only from the shopper's own subscription.
+    if (!lytrod_user_owns_subscription($resubscribe_subscription_id)) {
+        return $cart_item_data;
     }
     
     // Get the variation product
@@ -2233,10 +2145,30 @@ function add_prorated_fee_after_order_creation($order_id) {
             $price = ($signupfee > 0) ? floatval($signupfee) : floatval($recurring_price);
             
             if ($price > 0) {
-                $item->set_subtotal($price);
-                $item->set_total($price);
-                $item->save();
-                $updated = true;
+                // This hook runs on woocommerce_checkout_order_processed: after the order
+                // exists, but BEFORE the gateway is handed an amount. Rewriting the total
+                // here therefore charges a different figure from the one the customer
+                // agreed to in the cart, silently. That is how Add Years came to show a
+                // prorated price and charge full - see LAR_Switch_Pricing.
+                //
+                // The cart is now priced correctly, so this should be a no-op. Keep it as
+                // an assertion: if the two ever disagree again, say so loudly instead of
+                // papering over it.
+                if (wc_format_decimal($item->get_total(), 2) !== wc_format_decimal($price, 2)) {
+                    $message = sprintf(
+                        'Order #%d item "%s": cart total %s does not match the expected product price %s. Charging the cart total; NOT overwriting.',
+                        $order_id,
+                        $item->get_name(),
+                        wc_format_decimal($item->get_total(), 2),
+                        wc_format_decimal($price, 2)
+                    );
+
+                    if (function_exists('wc_get_logger')) {
+                        wc_get_logger()->error($message, array('source' => 'lytrod-switch-pricing'));
+                    }
+
+                    $order->add_order_note($message);
+                }
             }
         }
     }
@@ -2289,43 +2221,26 @@ function add_prorated_plus_fee_after_order_creation($order_id) {
 }
 
 
-// Additional fix: Ensure emails are sent for subscription switches
-function ensure_subscription_switch_emails($order_id) {
-    $order = wc_get_order($order_id);
-
-    if (!$order || !$order->get_meta('_subscription_switch')) {
-        return;
-    }
-
-    // Send at most once per order. This was previously hooked to BOTH
-    // woocommerce_order_status_processing and woocommerce_order_status_completed, so a
-    // switch order that passed through both statuses mailed the customer the same
-    // "Processing order" notice twice.
-    if ($order->get_meta('_switch_emails_sent') === 'yes') {
-        return;
-    }
-
-    $order->update_meta_data('_switch_emails_sent', 'yes');
-    $order->save();
-
-    // NOTE: calling trigger() directly bypasses WC_Subscriptions_Email's
-    // detach/reattach of the core transactional emails. That is deliberate here - a
-    // switch order is not a renewal, and without this the customer gets no
-    // confirmation at all, because WCS's own customer_completed_switch_order email is
-    // disabled on this store. If that email is ever enabled, delete this function and
-    // let WooCommerce Subscriptions handle switch notifications properly.
-    $emails = WC()->mailer()->get_emails();
-
-    if (isset($emails['WC_Email_New_Order'])) {
-        $emails['WC_Email_New_Order']->trigger($order_id);
-    }
-
-    if (isset($emails['WC_Email_Customer_Processing_Order'])) {
-        $emails['WC_Email_Customer_Processing_Order']->trigger($order_id);
-    }
-}
-
-add_action('woocommerce_order_status_processing', 'ensure_subscription_switch_emails', 10, 1);
+/*
+ * REMOVED: ensure_subscription_switch_emails().
+ *
+ * It hand-triggered WC_Email_New_Order and WC_Email_Customer_Processing_Order by
+ * calling ->trigger() directly, deliberately bypassing
+ * WC_Subscriptions_Email::maybe_remove_woocommerce_email(), which suppresses the core
+ * transactional emails on switch orders. Its own comment said to delete it once the
+ * customer-facing switch email was enabled - which it now is.
+ *
+ * The replacement is WooCommerce Subscriptions' own customer_completed_switch_order,
+ * rendered through the branded template lytrod-emails already ships at
+ * templates/woocommerce-subscriptions/emails/customer-completed-switch-order.php. That
+ * template shares lytrod_emails_renewal_receipt() with the renewal invoice, so an
+ * "Add Years" purchase and an automatic renewal now produce the same licence receipt.
+ *
+ * What customers received before: the generic processing-order template's subscription
+ * branch fires only woocommerce_email_after_order_table and never
+ * woocommerce_email_order_details, so the email was a bare "we've received your order
+ * #NNNN" with no order table, no licence details and no expiry date.
+ */
 
 add_action('woocommerce_before_checkout_form', 'keep_only_current_item_in_cart', 10);
 function keep_only_current_item_in_cart() {
@@ -2491,38 +2406,18 @@ function custom_message_after_add_to_cart_button() {
 	}
 }
 
-add_action( 'wp_footer', 'force_select_first_visible_option', 100 );
-function force_select_first_visible_option() {
-    if ( ! is_product() ) return;
-    ?>
-    <script>
-    jQuery(document).ready(function($) {
-        setTimeout(function() {
-            var $select = $('#choose');
-            if ($select.length) {
-                var $visibleOption = $select.find('option').filter(function() {
-                    return $(this).css('display') !== 'none' && $(this).val() !== '';
-                }).first();
-
-                if ($visibleOption.length) {
-                    $select.val($visibleOption.val()).trigger('change');
-                }
-            }
-        }, 200); // Wait for DOM and WooCommerce scripts to finish
-		
-		$('form.variations_form').on('found_variation', function() {
-			setTimeout(function() {
-				var signUpFeeClass = $('.custom-sign-up-fee').length;
-				var subscriptionPriceClass = $('.custom-subscription-price').length;
-				if (signUpFeeClass) {
-					$('.single_variation .woocommerce-variation-price .woocommerce-Price-amount:first').fadeOut('slow');
-				} 
-			}, 350);
-    	});
-    });
-    </script>
-    <?php
-}
+/*
+ * REMOVED: force_select_first_visible_option().
+ *
+ * Waited 200ms and then selected "the first option whose display is not none". It was
+ * only needed because the hiding above happened client-side; with the list filtered
+ * server-side WooCommerce selects correctly on its own. The fixed timer was the second
+ * half of the first-login race: on a cold load WooCommerce had not finished rendering
+ * the options when it fired, so it selected nothing valid and checkout was unreachable.
+ *
+ * The price-fade on found_variation went with it; the sign-up fee display is handled by
+ * show_sign_up_fee_and_price() on woocommerce_subscriptions_product_price_string.
+ */
 
 add_filter( 'woocommerce_subscriptions_product_price_string', 'show_sign_up_fee_and_price', 10, 2 );
 add_filter( 'woocommerce_subscriptions_variation_price_html', 'show_sign_up_fee_and_price', 10, 2 );
@@ -2614,7 +2509,18 @@ function custom_subscription_price_string_append($price_string, $product) {
 }
 
 
-add_filter('wcs_calculate_prorated_totals', '__return_false');
+/*
+ * REMOVED: add_filter('wcs_calculate_prorated_totals', '__return_false');
+ *
+ * No such filter exists in WooCommerce Subscriptions. The real entry point is
+ * WC_Subscriptions_Switcher::calculate_prorated_totals(), hooked unconditionally to
+ * woocommerce_before_calculate_totals at priority 99, so this line never had any effect
+ * and switch proration ran unopposed the whole time it was here.
+ *
+ * Switch proration is now controlled properly in LAR_Switch_Pricing
+ * (wp-content/plugins/lytrod-auto-renewal), which pins the wcs_switch_should_prorate_*
+ * filters that WCS actually provides.
+ */
 
 add_action('wp_footer', 'custom_dynamic_checkout_button_text');
 function custom_dynamic_checkout_button_text() {
@@ -2986,6 +2892,23 @@ function lytrod_get_payable_renewal_order($subscription) {
     });
 
     return $candidates[0];
+}
+
+/**
+ * Whether a subscription belongs to the given user (the current user by default).
+ *
+ * Resubscribe IDs arrive in posted form data, so anything that copies from or writes to "the
+ * old subscription" must check this first.
+ */
+function lytrod_user_owns_subscription($subscription_id, $user_id = null) {
+    if (!function_exists('wcs_get_subscription') || !absint($subscription_id)) {
+        return false;
+    }
+
+    $subscription = wcs_get_subscription(absint($subscription_id));
+    $user_id      = null === $user_id ? get_current_user_id() : (int) $user_id;
+
+    return $subscription && $user_id > 0 && (int) $subscription->get_user_id() === $user_id;
 }
 
 /**
@@ -3580,6 +3503,12 @@ function process_subscription_resubscribe($subscription, $order) {
         return;
     }
 
+    // The old ID can come from posted form data, so never copy from or mark a subscription
+    // that belongs to a different customer.
+    if ((int) $old_subscription->get_customer_id() !== (int) $order->get_customer_id()) {
+        return;
+    }
+
     // Step 1: Get new subscription's product ID from order items
     $new_product_id = null;
     $new_variation_id = null;
@@ -3701,9 +3630,9 @@ function process_subscription_resubscribe($subscription, $order) {
 add_filter('woocommerce_add_cart_item_data', 'store_resubscribe_data_in_cart', 10, 3);
 function store_resubscribe_data_in_cart($cart_item_data, $product_id, $variation_id) {
     // Use WooCommerce standard meta key
-    if (isset($_POST['_resubscribe_subscription_id'])) {
+    if (isset($_POST['_resubscribe_subscription_id']) && lytrod_user_owns_subscription($_POST['_resubscribe_subscription_id'])) {
         $subscription_id = intval($_POST['_resubscribe_subscription_id']);
-        
+
         // Set in WooCommerce Subscriptions format
         $cart_item_data['subscription_resubscribe'] = array(
             'subscription_id' => $subscription_id

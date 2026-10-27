@@ -4,7 +4,7 @@ Tags: online store, ecommerce, shop, shopping cart, sell online
 Requires at least: 7.0
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 11.1.0
+Stable tag: 11.2.0
 License: GPLv3
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -170,15 +170,12 @@ WooCommerce comes with some sample data you can use to see how products look; im
 
 == Changelog ==
 
-= 11.1.1 2026-09-18 =
+= 11.2.1 2026-10-09 =
 
 **WooCommerce**
 
-* Fix - Add a stricter dispatch check to REST API key authentication. [#68827](https://github.com/woocommerce/woocommerce/pull/68827)
-* Fix - Prevent unstyled Mini Cart drawer contents from appearing below the footer when the Mini Cart block is hidden. [#68790](https://github.com/woocommerce/woocommerce/pull/68790)
-* Fix - Update legacy options API permission checks. [#68862](https://github.com/woocommerce/woocommerce/pull/68862)
-* Fix - Update mobile app login permission checks. [#68862](https://github.com/woocommerce/woocommerce/pull/68862)
-* Fix - Update session cookie validation. [#68862](https://github.com/woocommerce/woocommerce/pull/68862)
+* Fix - Restore how the classic checkout sends order review and coupon requests, so fields removed with checkout field filters are no longer sent as empty values. [#69649](https://github.com/woocommerce/woocommerce/pull/69649)
+* Fix - Accept legacy four-digit Argentine postcodes in the Checkout block again. [#69662](https://github.com/woocommerce/woocommerce/pull/69662)
 
 
 [See changelog for all versions](https://raw.githubusercontent.com/woocommerce/woocommerce/trunk/changelog.txt).

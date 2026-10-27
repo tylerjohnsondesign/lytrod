@@ -194,6 +194,10 @@ class NF_AJAX_Controllers_Submission extends NF_Abstracts_Controller
 
     protected function process()
     {
+        // Discard client-submitted extra data stored under a reserved,
+        // server-generated key before it enters processing. See issue #8228.
+        $this->scrubReservedExtraKeys();
+
         // Init Field Merge Tags.
         $field_merge_tags = Ninja_Forms()->merge_tags[ 'fields' ];
         $field_merge_tags->set_form_id( $this->_form_id );
@@ -305,13 +309,10 @@ class NF_AJAX_Controllers_Submission extends NF_Abstracts_Controller
                     $valid_child_ids[ (string) $child_field['id'] ] = $child_field;
                 }
 
-                foreach( $field["value"] as $index => $child_field_value ){
-                    // Extract child field ID from key (part before first dot).
-                    // Legitimate keys: "{childFieldId}.{instanceNumber}" e.g., "9.0", "9.1"
-                    $key_parts = explode( '.', (string) $index, 2 );
-                    $submitted_child_id = $key_parts[0];
+                foreach( ( is_array( $field['value'] ) ? $field['value'] : array() ) as $index => $child_field_value ){
+                    $submitted_child_id = $this->resolve_repeater_child_id( (string) $index, $valid_child_ids );
 
-                    if( isset( $valid_child_ids[ $submitted_child_id ] ) ) {
+                    if( null !== $submitted_child_id ) {
                         // Apply whitelist to repeater child fields using server-side definition.
                         // @see https://github.com/Saturday-Drive/ninja-forms/issues/8011
                         $child_field = $valid_child_ids[ $submitted_child_id ];
@@ -326,7 +327,7 @@ class NF_AJAX_Controllers_Submission extends NF_Abstracts_Controller
             /** Validate the Field */
             if( $validate_fields && ! isset( $this->_data[ 'resume' ] ) ){
                 if( $field["type"] === "repeater" ){
-                    foreach( $field["value"] as  $index => $child_field ){
+                    foreach( ( is_array( $field['value'] ) ? $field['value'] : array() ) as $index => $child_field ){
                         $this->validate_field( $field["value"][$index] );
                     }
                 } else {
@@ -338,7 +339,7 @@ class NF_AJAX_Controllers_Submission extends NF_Abstracts_Controller
             /** Process the Field */
             if( ! isset( $this->_data[ 'resume' ] ) ) {
                 if( $field["type"] === "repeater" ){
-                    foreach( $field["value"] as $index => $child_field ){
+                    foreach( ( is_array( $field['value'] ) ? $field['value'] : array() ) as $index => $child_field ){
                         $this->process_field( $field["value"][$index] );
                     }
                 } else {
@@ -581,6 +582,49 @@ class NF_AJAX_Controllers_Submission extends NF_Abstracts_Controller
      *
      * @return void
      */
+    /**
+     * Submission "extra" data keys reserved for server-generated data.
+     *
+     * Client-submitted values under these keys are discarded during
+     * processing so they cannot spoof or overwrite server data, or reach
+     * an admin screen that renders stored extra data. See issue #8228.
+     *
+     * @return array
+     */
+    protected function getReservedExtraKeys(): array
+    {
+        return apply_filters( 'ninja_forms_reserved_extra_keys', array(
+            'calculations',
+            'product_fields',
+        ) );
+    }
+
+    /**
+     * Remove client-submitted extra data stored under a reserved key.
+     *
+     * WordPress unslashes post meta keys when they are written, so each
+     * submitted key is compared to the reserved list in the form it will be
+     * stored as. This runs for both fresh and resumed submissions, and the
+     * re-merge in the calculations step reads the same scrubbed source.
+     * See issue #8228.
+     *
+     * @return void
+     */
+    protected function scrubReservedExtraKeys(): void
+    {
+        if ( ! isset( $this->_form_data[ 'extra' ] ) || ! is_array( $this->_form_data[ 'extra' ] ) ) {
+            return;
+        }
+
+        $reserved = $this->getReservedExtraKeys();
+
+        foreach ( array_keys( $this->_form_data[ 'extra' ] ) as $key ) {
+            if ( in_array( wp_unslash( $key ), $reserved, true ) ) {
+                unset( $this->_form_data[ 'extra' ][ $key ] );
+            }
+        }
+    }
+
     private function maybePreserveExtraData(): void
     {
         if (
@@ -782,6 +826,31 @@ class NF_AJAX_Controllers_Submission extends NF_Abstracts_Controller
      * @param array $whitelist    Allowed properties to copy from submission.
      * @return array The server field with allowed properties merged from submission.
      */
+    /**
+     * Resolve a Repeatable Fieldset entry to the child field it belongs to.
+     *
+     * @see https://github.com/Saturday-Drive/ninja-forms/issues/8116
+     *
+     * @param string $index           the submitted entry's key
+     * @param array  $valid_child_ids child fields of this fieldset, keyed by id
+     *
+     * @return string|null the child field id, or null when the entry matches none
+     */
+    protected function resolve_repeater_child_id( $index, $valid_child_ids )
+    {
+        $index = (string) $index;
+
+        // A submitted key is the child field's own id followed by the repeat
+        // number, for example "5.1_0" for the first repeat of child field "5.1".
+        // A child field id already contains a dot - it is the fieldset's id, a
+        // dot, then the child's number - so the child id is everything before
+        // the final underscore, not everything before the first dot (#8140).
+        $separator = strrpos( $index, '_' );
+        $submitted_child_id = false === $separator ? $index : substr( $index, 0, $separator );
+
+        return isset( $valid_child_ids[ $submitted_child_id ] ) ? $submitted_child_id : null;
+    }
+
     protected function apply_field_whitelist( array $server_field, array $submitted, array $whitelist ): array {
         // Security-critical properties that can NEVER be overridden by client data,
         // regardless of any filter or whitelist configuration.
